@@ -55,7 +55,7 @@ jobs:
       - uses: actions/setup-node@v4
         if: steps.pre.outputs.skip != 'true'
         with: { node-version: 22, cache: npm }
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         if: steps.pre.outputs.skip != 'true'
         with: { distribution: temurin, java-version: '21' }
       - uses: android-actions/setup-android@v4
