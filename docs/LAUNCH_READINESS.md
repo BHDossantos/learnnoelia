@@ -58,9 +58,12 @@ student + parent.
   feedback, due dates, and the running **final grade** (letter + %). Optional
   class average when the teacher enables it. Parent sees the same for their child.
 
-### A4. Integrations — TODO
-- Assignment graded (teacher_review.final_score) → upsert the linked grade_item's
-  entry. Quiz/paper grading → optional grade item. Calendar shows due dates.
+### A4. Integrations — DONE ✅
+- Teacher imports one of their assignments as a gradebook column ("Import from an
+  assignment"); each roster student's reviewed score (`teacher_reviews.final_score`,
+  falling back to `ai_grades.score`) is pulled into `grade_entries`, re-syncable
+  from Manage items (↻ Sync). Full gradebook exports to CSV
+  (`/gradebook/export`): per-item points + final %/letter/GPA, UTF-8 BOM for Excel.
 
 ---
 
@@ -75,8 +78,10 @@ ranked (env/seed items are the owner's to provision, tracked separately):
   coach/roleplay/scoring/grading/translate are "coming soon" though all built. **(quick)**
 - [x] **B2 — Portfolio certificates now list real earned credentials**
   (`portfolio/page.tsx`) while `/profile` shows real certs. **(quick)**
-- [ ] **B3 — Diagnostic doesn't close the loop**: builds a learner model but
-  never sets `cefr_level`, enrolls, or builds a path. Wire to placement + enroll.
+- [x] **B3 — Diagnostic now closes the loop**: the assessment result is matched
+  to a real published course and shown as a "Start here" card with one-click
+  Enroll & start (enrolls + opens the course). `api/diagnostic` returns a
+  `placement`; `DiagnosticClient` enrolls via the existing `enrollInCourse`.
 - [ ] **B4 — Lesson edit is raw-JSON** (`…/lessons/[id]/edit`): no schema
   validation; a typo can corrupt a lesson. Validate with the create zod union.
 - [ ] **B5 — Playground is a hardcoded JS-only toy** with no persistence while
@@ -128,3 +133,7 @@ AI (`ANTHROPIC_API_KEY`), Stripe (`STRIPE_SECRET_KEY` + per-tier price IDs +
   (A3) built; nav wired (sidebar + mobile + classroom 'Gradebook' button);
   build green. Fixed B1, B2. Next: A4 integrations (assignment->grade item) and
   Workstream C tests.
+- 2026-10-15: A4 done (assignment -> gradebook import/sync + CSV export) and B3
+  done (diagnostic -> course placement + one-click enroll). Build green, 21 unit
+  tests pass. Remaining in-code: B4 (lesson-edit validation), B5 (playground),
+  B7 (tutor Stripe reconciliation), wider e2e/unit tests.
