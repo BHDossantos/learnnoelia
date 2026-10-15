@@ -1,6 +1,8 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { enrollInCourse } from "@/app/learn/actions";
 
 type Question = { prompt: string; options: string[]; topic?: string; difficulty?: number };
 type Model = {
@@ -12,16 +14,20 @@ type Model = {
   recommendation: string;
   estimatedHours: number;
 };
+type Placement = { courseId: string; title: string; reason: string };
 
 export function DiagnosticClient() {
+  const router = useRouter();
   const [subject, setSubject] = useState("");
   const [phase, setPhase] = useState<"pick" | "quiz" | "done">("pick");
   const [busy, setBusy] = useState(false);
+  const [enrolling, setEnrolling] = useState(false);
   const [offline, setOffline] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [model, setModel] = useState<Model | null>(null);
+  const [placement, setPlacement] = useState<Placement | null>(null);
 
   async function call(body: unknown) {
     const r = await fetch("/api/diagnostic", {
@@ -49,7 +55,19 @@ export function DiagnosticClient() {
     const orderedAnswers = questions.map((_, i) => answers[i] ?? -1);
     const data = await call({ action: "assess", subject, questions, answers: orderedAnswers });
     setBusy(false);
-    if (data?.model) { setModel(data.model); setPhase("done"); }
+    if (data?.model) { setModel(data.model); setPlacement(data.placement ?? null); setPhase("done"); }
+  }
+
+  async function enrollAndStart() {
+    if (!placement || enrolling) return;
+    setEnrolling(true);
+    try {
+      await enrollInCourse({ courseId: placement.courseId });
+      router.push(`/learn/${placement.courseId}`);
+    } catch {
+      setEnrolling(false);
+      setError("Couldn't enroll just now — open the course from your path.");
+    }
   }
 
   const answeredCount = Object.keys(answers).length;
@@ -134,9 +152,28 @@ export function DiagnosticClient() {
       <ModelList title="🟡 Developing" items={model?.developingTopics} />
       <ModelList title="🧩 Gaps to fill first" items={model?.gaps} />
       <ModelList title="⚠️ Misconceptions to fix" items={model?.misconceptions} />
+
+      {placement && (
+        <div className="card border-brand-500/30 bg-brand-50/60 dark:bg-brand-500/10">
+          <p className="text-xs font-semibold uppercase tracking-wider text-brand-600">Start here</p>
+          <p className="mt-1 text-base font-semibold text-ink-900">{placement.title}</p>
+          {placement.reason && <p className="mt-0.5 text-sm text-ink-600">{placement.reason}</p>}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button onClick={enrollAndStart} disabled={enrolling} className="btn-primary px-5 py-2.5">
+              {enrolling ? "Enrolling…" : "Enroll & start learning"}
+            </button>
+            <Link href={`/learn/${placement.courseId}`} className="btn-ghost px-5 py-2.5">Preview course</Link>
+          </div>
+        </div>
+      )}
+
+      {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-2">
-        <Link href="/learn" className="btn-primary px-5 py-2.5">Start my path</Link>
-        <button onClick={() => { setPhase("pick"); setModel(null); setSubject(""); }} className="btn-ghost px-5 py-2.5">
+        {!placement && <Link href="/learn" className="btn-primary px-5 py-2.5">Start my path</Link>}
+        <button
+          onClick={() => { setPhase("pick"); setModel(null); setPlacement(null); setSubject(""); setError(null); }}
+          className="btn-ghost px-5 py-2.5"
+        >
           Assess another subject
         </button>
       </div>

@@ -12,6 +12,8 @@ import {
   toggleItemPublished,
   updateGradebookSettings,
   ensureGradebookSettings,
+  importAssignment,
+  syncAssignmentItem,
 } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -56,6 +58,18 @@ export default async function GradebookPage(props: { params: Promise<{ classroom
     ? await supabase.from("grade_entries").select("grade_item_id,student_id,points,exempt,feedback_md").in("grade_item_id", itemIds)
     : { data: [] as any[] };
 
+  // Assignments this teacher owns that aren't already a column in this gradebook —
+  // candidates for one-click import into the gradebook.
+  const linkedAssignmentIds = new Set(
+    (items ?? []).map((i: any) => i.assignment_id).filter(Boolean) as string[],
+  );
+  const { data: myAssignments } = await supabase
+    .from("assignments")
+    .select("id,title,max_score")
+    .eq("teacher_id", user.id)
+    .order("created_at", { ascending: false });
+  const importableAssignments = (myAssignments ?? []).filter((a: any) => !linkedAssignmentIds.has(a.id));
+
   const mode = (settings?.mode ?? "points") as "points" | "weighted";
   const scheme = (settings?.scheme ?? undefined) as SchemeBand[] | undefined;
   const categories = (cats ?? []) as GradeCategory[];
@@ -71,6 +85,15 @@ export default async function GradebookPage(props: { params: Promise<{ classroom
           <h1 className="mt-1 text-2xl font-bold">Gradebook — {classroom.name}</h1>
           <p className="text-sm text-ink-500">{students.length} students · {gItems.length} grade items · {mode} grading</p>
         </div>
+        {gItems.length > 0 && students.length > 0 && (
+          <a
+            href={`/teach/classrooms/${classroomId}/gradebook/export`}
+            className="btn-ghost text-sm"
+            download
+          >
+            ⭳ Export CSV
+          </a>
+        )}
       </header>
 
       {/* Settings */}
@@ -178,6 +201,31 @@ export default async function GradebookPage(props: { params: Promise<{ classroom
         </form>
       </section>
 
+      {/* Import from an assignment */}
+      {importableAssignments.length > 0 && (
+        <section className="card space-y-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-ink-500">Import from an assignment</p>
+            <p className="text-xs text-ink-400">
+              Adds the assignment as a gradebook column and pulls in each student&apos;s reviewed score
+              (or the AI grade if you haven&apos;t reviewed yet). Re-sync anytime from Manage items below.
+            </p>
+          </div>
+          <form action={importAssignment} className="flex flex-wrap items-end gap-2">
+            <input type="hidden" name="classroomId" value={classroomId} />
+            <label className="text-sm">
+              <span className="block text-xs text-ink-500">Assignment</span>
+              <select name="assignmentId" required className="w-72 max-w-full rounded-lg border border-black/10 bg-white px-2 py-1 text-sm dark:bg-white/5">
+                {importableAssignments.map((a: any) => (
+                  <option key={a.id} value={a.id}>{a.title} (/{a.max_score ?? 100})</option>
+                ))}
+              </select>
+            </label>
+            <button className="btn-ghost text-sm">Import &amp; sync grades</button>
+          </form>
+        </section>
+      )}
+
       {/* The grid */}
       {gItems.length === 0 || students.length === 0 ? (
         <p className="card text-sm text-ink-500">
@@ -202,8 +250,20 @@ export default async function GradebookPage(props: { params: Promise<{ classroom
           <ul className="divide-y divide-black/5">
             {gItems.map((i: any) => (
               <li key={i.id} className="flex items-center justify-between py-1.5 text-sm">
-                <span>{i.name} <span className="text-xs text-ink-400">/ {i.max_points}{i.category_id ? "" : " · uncategorized"}</span></span>
+                <span>
+                  {i.name} <span className="text-xs text-ink-400">/ {i.max_points}{i.category_id ? "" : " · uncategorized"}</span>
+                  {i.assignment_id && <span className="ml-1 rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-medium text-brand-600 dark:bg-brand-500/15">linked</span>}
+                </span>
                 <span className="flex items-center gap-2">
+                  {i.assignment_id && (
+                    <form action={syncAssignmentItem}>
+                      <input type="hidden" name="classroomId" value={classroomId} />
+                      <input type="hidden" name="id" value={i.id} />
+                      <button className="rounded-full bg-black/5 px-2 py-0.5 text-xs text-ink-600 hover:bg-black/10" title="Re-pull latest grades from the assignment">
+                        ↻ Sync
+                      </button>
+                    </form>
+                  )}
                   <form action={toggleItemPublished}>
                     <input type="hidden" name="classroomId" value={classroomId} />
                     <input type="hidden" name="id" value={i.id} />

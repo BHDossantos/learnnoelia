@@ -100,6 +100,56 @@ export async function POST(req: Request) {
   const model = parseJson(text);
   if (!model) return NextResponse.json({ error: "Could not analyze — try again." }, { status: 502 });
 
+  // Placement: match the learner to a real, published course in the catalog so
+  // the result ends in a concrete "enroll & start here" rather than a dead end.
+  let placement: { courseId: string; title: string; reason: string } | null = null;
+  try {
+    const tokens = Array.from(new Set((subject.toLowerCase().match(/[a-z0-9]+/g) ?? [])))
+      .filter((t) => t.length > 2)
+      .slice(0, 5);
+    let cq = supabase
+      .from("courses")
+      .select("id,title,school,cefr_level")
+      .eq("published", true);
+    if (tokens.length) cq = cq.or(tokens.map((t) => `title.ilike.%${t}%`).join(","));
+    let { data: candidates } = await cq.limit(40);
+    if (!candidates || candidates.length === 0) {
+      // Nothing matched by title — offer a broad slate so placement still works.
+      ({ data: candidates } = await supabase
+        .from("courses")
+        .select("id,title,school,cefr_level")
+        .eq("published", true)
+        .limit(40));
+    }
+    if (candidates && candidates.length) {
+      const valid = new Set(candidates.map((c: any) => c.id as string));
+      const compact = candidates.map((c: any) => ({ id: c.id, title: c.title, school: c.school, level: c.cefr_level }));
+      const pick = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 400,
+        system:
+          `You place a learner into ONE course from a catalog. Given their diagnostic ` +
+          `learner model and a list of courses (id, title, school, level), choose the single ` +
+          `best-fit course to start with next, matched to their level and gaps. ` +
+          `Return STRICT JSON only: {"courseId":"<exact id from the list, or empty string>",` +
+          `"reason":"one short sentence: why this course and where to focus first"}. ` +
+          `If none is a reasonable fit, return an empty courseId.`,
+        messages: [{
+          role: "user",
+          content: `Subject / goal: ${subject}\nLearner model: ${JSON.stringify(model)}\nCourses:\n${JSON.stringify(compact)}`,
+        }],
+      });
+      const ptext = pick.content.map((b) => (b.type === "text" ? b.text : "")).join("");
+      const pdata = parseJson(ptext);
+      if (pdata?.courseId && valid.has(pdata.courseId)) {
+        const chosen = compact.find((c) => c.id === pdata.courseId)!;
+        placement = { courseId: pdata.courseId, title: chosen.title, reason: String(pdata.reason ?? "").slice(0, 300) };
+      }
+    }
+  } catch {
+    // Placement is best-effort — a failure here never blocks the learner model.
+  }
+
   // Persist the learner model + open misconceptions (best-effort; needs 0033/0030).
   try {
     await supabase.from("diagnostic_results").insert({ user_id: user.id, subject, model });
@@ -113,5 +163,5 @@ export async function POST(req: Request) {
     // diagnostic/mastery tables not migrated yet — still return the model.
   }
 
-  return NextResponse.json({ model });
+  return NextResponse.json({ model, placement });
 }
