@@ -70,11 +70,61 @@ screenshot so the value is legible as a thumbnail.
 
 ## Data safety / privacy answers (both stores)
 
-Noelia collects: account info (email/name), learning activity, and support
-messages. Used for: app functionality and personalization. Not sold. Users can
-export and delete their data (`/api/export`, account settings). Auth is handled
-by Supabase; payments by Stripe **on the web only**. Fill each store's data form
-to match `/privacy` — keep the two consistent.
+Privacy policy URL for both forms: `https://learnnoelia.com/privacy`
+(redirects to /legal/privacy). Keep these answers consistent with that policy.
+
+Global answers:
+- **Does the app collect/share user data?** Yes (collect). **Sell data?** No.
+  **Use data for ads / third-party advertising?** No.
+- **Encrypted in transit?** Yes. **Can users request deletion?** Yes — in-app
+  account deletion + data export (Settings → Export / Delete).
+- **Data handled by processors only** (Supabase, Vercel, Stripe, LiveKit,
+  Anthropic, email, push) acting on our instructions — not "shared/sold" for
+  their own purposes.
+
+### Google Play — Data Safety form
+For each type: **Collected = Yes**, **Shared = No** (processors only), **Processing
+is not ephemeral**, **Required** unless noted, purposes as listed.
+
+| Category → data type | Collected | Purposes | Required? |
+|---|---|---|---|
+| **Personal info** → Name | Yes | App functionality, Account management | Required |
+| Personal info → Email address | Yes | App functionality, Account management | Required |
+| Personal info → User IDs | Yes | App functionality, Account management | Required |
+| Personal info → Other (role, parent/guardian email) | Yes | App functionality | Optional |
+| **Financial info** → Purchase history | Yes | App functionality | Optional |
+| **Messages** → Other in-app messages (coach, discussions, submissions) | Yes | App functionality, Personalization | Optional |
+| **Photos and videos** → Photos | Yes | App functionality | Optional |
+| **Files and docs** → Files and docs (PDF/PPTX/scans of work) | Yes | App functionality | Optional |
+| **App activity** → App interactions | Yes | App functionality, Analytics | Required |
+| App activity → Other user-generated content (notes, projects, grades) | Yes | App functionality | Optional |
+| **App info & performance** → Crash logs | Yes | Analytics | Optional |
+| App info & performance → Diagnostics | Yes | Analytics | Optional |
+| **Device or other IDs** → Device or other IDs | Yes | App functionality, Analytics | Optional |
+
+Notes: payment card details are collected by **Stripe on the web**, not by the
+app, so declare only **Purchase history**. Pronunciation uses on-device speech
+recognition (no audio leaves the device); only declare audio if a student
+uploads an audio file to an assignment.
+
+### Apple — App Privacy ("nutrition label")
+**Tracking:** No — we do **not** track users across other apps/websites.
+For every type below: **Linked to the user = Yes**, **Used for tracking = No**.
+
+| Apple category → type | Purpose(s) |
+|---|---|
+| **Contact Info** → Email Address | App Functionality, Product Personalization |
+| Contact Info → Name | App Functionality, Product Personalization |
+| **User Content** → Photos or Videos | App Functionality |
+| User Content → Customer Support | App Functionality |
+| User Content → Other User Content (submissions, notes, messages, files) | App Functionality, Product Personalization |
+| **Identifiers** → User ID | App Functionality, Analytics |
+| **Usage Data** → Product Interaction | Analytics, App Functionality |
+| **Diagnostics** → Crash Data, Performance Data | Analytics |
+| **Purchases** → Purchase History | App Functionality |
+
+Mark everything else (Location, Health, Browsing History, Contacts, Financial
+Info beyond purchase history, Sensitive Info, etc.) as **Data Not Collected**.
 
 ## Age rating
 Educational, no objectionable content → typically **4+ (App Store)** / **Everyone
