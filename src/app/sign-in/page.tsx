@@ -5,12 +5,18 @@ import { requestMagicLink } from "@/app/sign-in/actions";
 
 const GOOGLE_ENABLED = process.env.NEXT_PUBLIC_GOOGLE_AUTH === "1";
 
+type Mode = "magic" | "password";
+
 export default function SignInPage() {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<Mode>("magic");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [oauthBusy, setOauthBusy] = useState(false);
+  const [pwBusy, setPwBusy] = useState(false);
 
   // Surface errors handed back by /auth/callback (?error=...) — previously
   // these were silently swallowed and sign-in failures looked like a bounce.
@@ -61,6 +67,45 @@ export default function SignInPage() {
     // On success the browser navigates away to Google.
   }
 
+  // Email + password sign-in. No email round-trip, so it works even when
+  // transactional email isn't set up yet (and gives App Store reviewers a login).
+  async function passwordSignIn(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setInfo(null);
+    if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    setPwBusy(true);
+    const { error } = await supabaseBrowser().auth.signInWithPassword({ email, password });
+    if (error) {
+      setError(/invalid login/i.test(error.message) ? "Wrong email or password." : error.message);
+      setPwBusy(false);
+      return;
+    }
+    // Full navigation so the server picks up the new session cookie.
+    window.location.assign("/");
+  }
+
+  async function passwordSignUp() {
+    setError(null);
+    setInfo(null);
+    if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    setPwBusy(true);
+    const { data, error } = await supabaseBrowser().auth.signUp({ email, password });
+    if (error) {
+      setError(error.message);
+      setPwBusy(false);
+      return;
+    }
+    if (data.session) {
+      // Email confirmation is off — we're signed in immediately.
+      window.location.assign("/");
+      return;
+    }
+    // Email confirmation is on: the account exists but needs a verification email.
+    setInfo("Account created. If email confirmation is on, check your inbox to confirm before signing in.");
+    setPwBusy(false);
+  }
+
   return (
     <div className="mx-auto max-w-md space-y-4 pt-8">
       <h1 className="text-2xl font-bold">Sign in</h1>
@@ -87,32 +132,74 @@ export default function SignInPage() {
       </button>
       )}
 
-      {GOOGLE_ENABLED && (
       <div className="flex items-center gap-3 text-xs text-ink-500">
         <span className="h-px flex-1 bg-black/10 dark:bg-white/10" />
-        or with email
+        {mode === "magic" ? "with email" : "with a password"}
         <span className="h-px flex-1 bg-black/10 dark:bg-white/10" />
       </div>
-      )}
 
-      {sent ? (
-        <p className="card">Check your email for the magic link.</p>
+      {mode === "magic" ? (
+        sent ? (
+          <p className="card">Check your email for the magic link.</p>
+        ) : (
+          <form onSubmit={handle} className="space-y-3">
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="w-full rounded-xl border border-black/10 bg-white px-4 py-3"
+            />
+            <button className="btn-primary w-full" type="submit" disabled={pending}>
+              {pending ? "Sending…" : "Send magic link"}
+            </button>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+          </form>
+        )
       ) : (
-        <form onSubmit={handle} className="space-y-3">
+        <form onSubmit={passwordSignIn} className="space-y-3">
           <input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
+            autoComplete="email"
             className="w-full rounded-xl border border-black/10 bg-white px-4 py-3"
           />
-          <button className="btn-primary w-full" type="submit" disabled={pending}>
-            {pending ? "Sending…" : "Send magic link"}
+          <input
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            autoComplete="current-password"
+            className="w-full rounded-xl border border-black/10 bg-white px-4 py-3"
+          />
+          <button className="btn-primary w-full" type="submit" disabled={pwBusy}>
+            {pwBusy ? "Signing in…" : "Sign in"}
+          </button>
+          <button
+            type="button"
+            onClick={passwordSignUp}
+            disabled={pwBusy}
+            className="btn-ghost w-full border border-black/10 dark:border-white/10"
+          >
+            Create an account
           </button>
           {error && <p className="text-sm text-red-600">{error}</p>}
+          {info && <p className="text-sm text-ink-600">{info}</p>}
         </form>
       )}
+
+      <button
+        type="button"
+        onClick={() => { setMode(mode === "magic" ? "password" : "magic"); setError(null); setInfo(null); setSent(false); }}
+        className="w-full text-center text-xs text-brand-500 underline"
+      >
+        {mode === "magic" ? "Use a password instead" : "Email me a magic link instead"}
+      </button>
 
       <p className="pt-2 text-center text-xs text-ink-500">
         By continuing you agree to our{" "}
