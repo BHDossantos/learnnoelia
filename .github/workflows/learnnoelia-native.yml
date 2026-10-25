@@ -1,17 +1,35 @@
 name: LearnNoelia Native Builds
+
+# Validation only: no signing identities, store uploads, or deployment.
 on:
   workflow_dispatch:
-  push:
-    branches: [brand/learnnoelia-mobile]
+  pull_request:
     paths:
       - 'capacitor.config.ts'
       - 'mobile/**'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/learnnoelia-native.yml'
+  push:
+    branches: [claude/language-learning-app-vfwbQ, brand/learnnoelia-mobile]
+    paths:
+      - 'capacitor.config.ts'
+      - 'mobile/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/learnnoelia-native.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-validation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   android:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
@@ -26,14 +44,29 @@ jobs:
       - run: npm ci
       - run: npx cap add android
       - run: npx cap sync android
-      - name: Build unsigned Android bundle for validation
-        run: cd android && ./gradlew bundleRelease
+      - name: Compile debug APK and unsigned release bundle
+        working-directory: android
+        run: ./gradlew --no-daemon :app:assembleDebug :app:bundleRelease :app:lintDebug
       - uses: actions/upload-artifact@v6
         with:
-          name: learnnoelia-android-unsigned
-          path: android/app/build/outputs/bundle/release/*.aab
+          name: learnnoelia-android-validation-${{ github.sha }}
+          path: |
+            android/app/build/outputs/apk/debug/*.apk
+            android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload Android lint report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: learnnoelia-android-lint-${{ github.sha }}
+          path: android/app/build/reports/lint-results-debug.*
+          if-no-files-found: ignore
+          retention-days: 14
+
   ios:
     runs-on: macos-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
@@ -43,8 +76,23 @@ jobs:
       - run: npm ci
       - run: npx cap add ios
       - run: npx cap sync ios
-      - name: Install CocoaPods
-        run: cd ios/App && pod install
+      # Capacitor 8 generates a Swift Package Manager project by default.
+      # There is no Podfile, so do not run pod install here.
       - name: Compile iOS simulator app without signing
         run: |
-          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+          xcodebuild -project ios/App/App.xcodeproj -scheme App \
+            -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/noelia-derived" \
+            CODE_SIGNING_ALLOWED=NO build
+      - name: Package simulator app
+        run: |
+          APP="$RUNNER_TEMP/noelia-derived/Build/Products/Debug-iphonesimulator/App.app"
+          test -d "$APP"
+          ditto -c -k --keepParent "$APP" "$RUNNER_TEMP/learnnoelia-simulator.zip"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: learnnoelia-ios-simulator-${{ github.sha }}
+          path: ${{ runner.temp }}/learnnoelia-simulator.zip
+          if-no-files-found: error
+          retention-days: 14
