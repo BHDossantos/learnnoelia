@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { ensureInviteCode, linkStudent, unlinkStudent } from "./actions";
+import { ensureInviteCode, linkStudent, unlinkStudent, followDemoStudent } from "./actions";
 
 type LinkedStudent = { id: string; name: string };
 
@@ -98,6 +98,14 @@ export function FamilyClient({
             Ask them to open Noelia → <span className="font-medium">Family</span> → <span className="font-medium">Invite a parent</span>,
             then enter the 6-character code below.
           </p>
+          <div className="mt-3 border-t border-brand-500/20 pt-3">
+            <p className="text-xs text-ink-600">Just want to look around first?</p>
+            <form action={followDemoStudent} className="mt-1.5">
+              <button type="submit" className="btn-ghost border border-black/10 text-sm dark:border-white/10">
+                👨‍🎓 Follow a demo student (John Doe)
+              </button>
+            </form>
+          </div>
         </div>
       )}
 

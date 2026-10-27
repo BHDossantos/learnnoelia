@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { ensureDemoStudent } from "@/lib/demo";
 
 function makeCode() {
   const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -53,6 +55,26 @@ export async function linkStudent(input: { code: string }) {
   if (error) throw new Error(error.message);
 
   revalidatePath("/family");
+}
+
+// One-click demo: link the parent to the shared "John Doe" demo student (seeded
+// with real enrollments and grades) so they can walk the whole parent journey.
+export async function followDemoStudent(): Promise<void> {
+  const supabase = await supabaseServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/sign-in");
+
+  const admin = supabaseAdmin();
+  if (!admin) throw new Error("Demo student isn't available on this deployment yet.");
+  const demoId = await ensureDemoStudent(admin);
+
+  // Link via the admin client so RLS on guardians doesn't block the demo link.
+  await admin
+    .from("guardians")
+    .upsert({ guardian_id: user.id, student_id: demoId }, { onConflict: "guardian_id,student_id", ignoreDuplicates: true });
+
+  revalidatePath("/family");
+  redirect(`/parent/${demoId}`);
 }
 
 export async function unlinkStudent(input: { studentId: string }) {

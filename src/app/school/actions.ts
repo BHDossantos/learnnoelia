@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { ensureDemoStudent } from "@/lib/demo";
 
 async function requireUserId() {
   const supabase = await supabaseServer();
@@ -124,6 +126,76 @@ export async function setupDemoClassroom(): Promise<void> {
       pick.map((course_id) => ({ classroom_id: classroom.id, course_id, assigned_by: userId })),
       { onConflict: "classroom_id,course_id" },
     );
+  }
+
+  // Put the shared "John Doe" demo student on the roster (with real progress) so
+  // the teacher has someone to grade, track, and demo the gradebook with.
+  const admin = supabaseAdmin();
+  if (admin) {
+    try {
+      const demoId = await ensureDemoStudent(admin);
+      await admin
+        .from("classroom_members")
+        .upsert({ classroom_id: classroom.id, user_id: demoId, role: "student" }, { onConflict: "classroom_id,user_id" });
+      if (pick.length) {
+        await admin.from("enrollments").upsert(
+          pick.map((course_id) => ({ user_id: demoId, course_id, role: "student" })),
+          { onConflict: "user_id,course_id" },
+        );
+      }
+    } catch {
+      // Demo student is a nicety — never block class creation on it.
+    }
+  }
+
+  // Seed one teacher-authored example course so "Your courses" isn't empty and
+  // the teacher can demo editing their own content.
+  try {
+    const { data: ownCourse } = await supabase
+      .from("courses")
+      .insert({
+        teacher_id: userId,
+        title: "My First Course (example) — Study Skills 101",
+        description: "An example course you own. Edit it, add lessons, or delete it anytime.",
+        kind: "humanities",
+        school: "humanities",
+        subject: "Study Skills",
+        language: "en",
+        published: true,
+      })
+      .select("id")
+      .single();
+    if (ownCourse?.id) {
+      await supabase.from("lessons").insert([
+        {
+          course_id: ownCourse.id,
+          position: 1,
+          title: "How to study effectively",
+          kind: "reading",
+          body: {
+            sections: [
+              { heading: "Spaced practice", text: "Short study sessions spread over days beat one long cram. Revisit material just as you are about to forget it and it sticks far longer." },
+              { heading: "Active recall", text: "Close the book and try to retrieve the answer from memory. The struggle to recall is what builds durable learning." },
+            ],
+          },
+          estimated_minutes: 8,
+        },
+        {
+          course_id: ownCourse.id,
+          position: 2,
+          title: "Quick check",
+          kind: "quiz",
+          body: {
+            questions: [
+              { prompt: "Which is more effective for long-term memory?", options: ["One long cram session", "Short sessions spread over days"], answer: 1, explanation: "Spaced practice beats massed practice for retention." },
+            ],
+          },
+          estimated_minutes: 3,
+        },
+      ]);
+    }
+  } catch {
+    // Example course is optional — don't block on it.
   }
 
   revalidatePath("/teach");
