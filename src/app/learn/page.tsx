@@ -29,11 +29,30 @@ export default async function LearnPage(
   const primary = await getPrimaryTargetLanguage();
   const lang = (searchParams.lang ?? primary?.language ?? "es") as LanguageCode;
   const scope: Scope = searchParams.scope === "all" ? "all" : "mine";
-  const subject: Subject = (["math", "technology", "business", "science", "humanities", "arts"] as const).includes(
-    searchParams.school as any,
-  )
+  // Which school to show. If the URL names one, honor it. Otherwise DON'T blindly
+  // default to Languages — default to the subject this student actually studies
+  // most, by tallying the schools of their enrolled courses. New learners with no
+  // enrollments still fall back to Languages.
+  const ALL_SUBJECTS = ["language", "math", "technology", "business", "science", "humanities", "arts"] as const;
+  const explicitSchool: Subject | null = (ALL_SUBJECTS as readonly string[]).includes(searchParams.school ?? "")
     ? (searchParams.school as Subject)
-    : "language";
+    : null;
+  let subject: Subject;
+  if (explicitSchool) {
+    subject = explicitSchool;
+  } else {
+    const { data: myEnrollments } = await supabase
+      .from("enrollments")
+      .select("course:courses(school)")
+      .eq("user_id", user.id);
+    const counts = new Map<string, number>();
+    for (const e of (myEnrollments ?? []) as any[]) {
+      const sch = e.course?.school as string | undefined;
+      if (sch) counts.set(sch, (counts.get(sch) ?? 0) + 1);
+    }
+    const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+    subject = ((ALL_SUBJECTS as readonly string[]).includes(top ?? "") ? top : "language") as Subject;
+  }
   const school = SCHOOLS.find((s) => s.id === subject)!;
 
   let query = supabase

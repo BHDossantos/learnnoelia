@@ -1271,6 +1271,10 @@ type QuizQuestion = {
   explanation?: string;
 };
 
+// A question the learner got wrong, kept so the results screen can show them
+// exactly what to review (their answer, the right one, and why).
+type MissedItem = { prompt: string; your: string; correct: string; explanation?: string };
+
 // Quick quiz: answer each question, get instant feedback + explanation,
 // finish with a percentage score that feeds lesson_progress and XP.
 const QUIZ_PASS = 70;
@@ -1288,7 +1292,7 @@ function QuizLesson({
   const [i, setI] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
   const [correctCount, setCorrectCount] = useState(0);
-  const [missed, setMissed] = useState<string[]>([]);
+  const [missed, setMissed] = useState<MissedItem[]>([]);
   const [done, setDone] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -1300,7 +1304,16 @@ function QuizLesson({
     setPicked(idx);
     const isCorrect = idx === q.answer;
     if (isCorrect) setCorrectCount((c) => c + 1);
-    else setMissed((m) => [...m, (q as any).prompt ?? "a question"]);
+    else
+      setMissed((m) => [
+        ...m,
+        {
+          prompt: q.prompt ?? "a question",
+          your: q.options?.[idx] ?? "—",
+          correct: q.options?.[q.answer] ?? "—",
+          explanation: q.explanation,
+        },
+      ]);
     // Feed item analysis (fire-and-forget).
     void logQuizAnswer(lessonId, i, (q as any).prompt ?? "", isCorrect);
   }
@@ -1324,7 +1337,7 @@ function QuizLesson({
       // student's teachers and parents are notified with the score, the topics
       // missed, and a plan — same fan-out as a paper grading.
       if (gate) {
-        const missedNow = missed.slice(0, 6);
+        const missedNow = missed.slice(0, 6).map((m) => m.prompt);
         startTransition(async () => {
           try { await recordTestResultAction(lessonId, score, missedNow); } catch {}
         });
@@ -1341,25 +1354,50 @@ function QuizLesson({
   if (done) {
     const score = Math.round((correctCount / total) * 100);
     const passed = !gate || score >= QUIZ_PASS;
+    // "Focus on these": the exact questions missed, with the right answer and why,
+    // so the learner knows what to study instead of just seeing a score.
+    const missedReview =
+      missed.length > 0 ? (
+        <div className="card space-y-3 text-left" data-testid="quiz-focus">
+          <p className="text-sm font-semibold text-ink-900">
+            📌 Focus on these {missed.length === 1 ? "1 topic" : `${missed.length} topics`}
+          </p>
+          <ul className="space-y-3">
+            {missed.map((m, idx) => (
+              <li key={idx} className="border-l-2 border-amber-400 pl-3">
+                <p className="text-sm font-medium text-ink-800">{m.prompt}</p>
+                <p className="mt-0.5 text-xs text-red-600">You chose: {m.your}</p>
+                <p className="text-xs font-medium text-green-700">Correct: {m.correct}</p>
+                {m.explanation && <p className="mt-1 text-xs leading-relaxed text-ink-600">{m.explanation}</p>}
+              </li>
+            ))}
+          </ul>
+          <Link href={`/learn/${courseId}`} className="inline-block text-xs font-semibold text-brand-600 hover:text-brand-700">
+            Back to the lessons to review these ›
+          </Link>
+        </div>
+      ) : null;
+
     if (!passed) {
       return (
-        <div className="mx-auto max-w-md">
+        <div className="mx-auto max-w-lg space-y-3">
           <div className="card space-y-3 py-8 text-center border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10">
             <p className="text-5xl font-extrabold tracking-tight text-amber-600" data-testid="quiz-score">{score}%</p>
             <p className="text-sm text-amber-800">
               You need {QUIZ_PASS}% to unlock the next lesson. {correctCount} of {total} correct.
             </p>
-            <p className="text-xs text-ink-500">Review the material, then try again — this is how mastery sticks.</p>
+            <p className="text-xs text-ink-500">Review the focus areas below, then try again — this is how mastery sticks.</p>
             <div className="flex justify-center gap-2 pt-1">
               <button onClick={retake} className="btn-primary">Retake quiz</button>
               <Link href={`/learn/${courseId}`} className="btn-ghost">Review the course</Link>
             </div>
           </div>
+          {missedReview}
         </div>
       );
     }
     return (
-      <div className="mx-auto max-w-md">
+      <div className="mx-auto max-w-lg space-y-3">
         <div className="card space-y-3 py-8 text-center">
           <Celebrate xp={XP.lessonComplete} />
           <h1 className="text-xl font-bold">Quiz passed 🎉</h1>
@@ -1371,6 +1409,7 @@ function QuizLesson({
           </p>
           <Link href={`/learn/${courseId}`} className="btn-primary inline-block">Continue</Link>
         </div>
+        {missedReview}
       </div>
     );
   }
