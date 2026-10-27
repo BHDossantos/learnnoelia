@@ -42,6 +42,7 @@ const CreateClassroomInput = z.object({
   orgId: z.string().uuid(),
   name: z.string().min(1).max(120),
   gradeLevel: z.string().max(40).optional(),
+  term: z.string().max(40).optional(),
 });
 
 export async function createClassroom(input: z.input<typeof CreateClassroomInput>) {
@@ -51,6 +52,7 @@ export async function createClassroom(input: z.input<typeof CreateClassroomInput
     org_id: data.orgId,
     name: data.name,
     grade_level: data.gradeLevel ?? null,
+    term: data.term ?? null,
   });
   if (error) throw new Error(error.message);
   revalidatePath(`/school/${data.orgId}`);

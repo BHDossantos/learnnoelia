@@ -194,9 +194,14 @@ export default async function ClassroomPage(
           )}
         </div>
         {canManage && (
-          <Link href={`/teach/classrooms/${classroom.id}/gradebook`} className="btn-primary shrink-0 text-sm">
-            📊 Gradebook
-          </Link>
+          <div className="flex shrink-0 gap-2">
+            <Link href={`/teach/grade?classroomId=${classroom.id}`} className="btn-ghost text-sm">
+              📸 Grade papers
+            </Link>
+            <Link href={`/teach/classrooms/${classroom.id}/gradebook`} className="btn-primary text-sm">
+              📊 Gradebook
+            </Link>
+          </div>
         )}
       </header>
 
