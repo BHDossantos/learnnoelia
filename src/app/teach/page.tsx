@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase/server";
+import { setupDemoClassroom } from "@/app/school/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -46,10 +47,23 @@ export default async function TeachHome() {
       <section className="space-y-2">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-500">Your classes</h2>
         {myClasses.length === 0 ? (
-          <div className="card text-sm text-ink-500">
-            You don&apos;t have a class yet. Create one in your{" "}
-            <Link href="/school" className="text-brand-500">school / organization</Link>, then assign
-            courses from the catalog and add students.
+          <div className="card space-y-3">
+            <div>
+              <p className="text-sm font-semibold">Get started in one click</p>
+              <p className="text-sm text-ink-500">
+                Set up a ready-to-go demo class pre-loaded with courses across every subject —
+                then you can add students, assign more from the catalog, grade papers, and open the gradebook.
+              </p>
+            </div>
+            <form action={setupDemoClassroom}>
+              <button type="submit" className="btn-primary w-full sm:w-auto">
+                ✨ Create my demo class
+              </button>
+            </form>
+            <p className="text-xs text-ink-400">
+              Prefer to build it yourself? Create a class in your{" "}
+              <Link href="/school" className="text-brand-500">school / organization</Link>.
+            </p>
           </div>
         ) : (
           <ul className="space-y-2">

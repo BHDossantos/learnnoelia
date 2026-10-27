@@ -58,6 +58,78 @@ export async function createClassroom(input: z.input<typeof CreateClassroomInput
   revalidatePath(`/school/${data.orgId}`);
 }
 
+// One-click demo setup for a teacher with no class yet: creates a school, a demo
+// classroom pre-loaded with a spread of catalog courses across every subject,
+// and makes the teacher its owner + classroom teacher — so they land in a
+// working, demonstrable class instead of an empty "go create an org" wall.
+// Idempotent: if the teacher already runs a class, it just returns that one.
+export async function setupDemoClassroom(): Promise<void> {
+  const { supabase, userId } = await requireUserId();
+
+  // Already teaching a class? Go straight there.
+  const { data: existing } = await supabase
+    .from("classroom_members")
+    .select("classroom:classrooms(id,org_id)")
+    .eq("user_id", userId)
+    .eq("role", "teacher")
+    .limit(1)
+    .maybeSingle();
+  const ex = (existing as any)?.classroom;
+  if (ex?.id && ex?.org_id) redirect(`/school/${ex.org_id}/classrooms/${ex.id}`);
+
+  const { data: profile } = await supabase
+    .from("profiles").select("display_name").eq("id", userId).maybeSingle();
+  const owner = (profile?.display_name as string | null)?.trim();
+  const orgName = owner ? `${owner}'s School` : "My School";
+
+  // Create the org (RPC also adds the caller as owner in org_members).
+  const { data: orgId, error: orgErr } = await supabase.rpc("create_organization", {
+    p_name: orgName,
+    p_type: "school",
+    p_country: null,
+  });
+  if (orgErr) throw new Error(orgErr.message);
+
+  // Create the demo classroom and make the teacher its classroom teacher.
+  const { data: classroom, error: clsErr } = await supabase
+    .from("classrooms")
+    .insert({ org_id: orgId, name: "Demo Class", term: "Fall 2026" })
+    .select("id")
+    .single();
+  if (clsErr) throw new Error(clsErr.message);
+  await supabase
+    .from("classroom_members")
+    .upsert(
+      { classroom_id: classroom.id, user_id: userId, role: "teacher" },
+      { onConflict: "classroom_id,user_id" },
+    );
+
+  // Pre-load a spread of catalog courses: up to 4 per subject so every school is
+  // represented and the class is rich but not overwhelming.
+  const { data: cat } = await supabase
+    .from("courses")
+    .select("id,school,position")
+    .eq("published", true)
+    .is("teacher_id", null)
+    .order("school")
+    .order("position");
+  const perSchool = new Map<string, number>();
+  const pick: string[] = [];
+  for (const c of (cat ?? []) as any[]) {
+    const n = perSchool.get(c.school) ?? 0;
+    if (n < 4) { pick.push(c.id as string); perSchool.set(c.school, n + 1); }
+  }
+  if (pick.length) {
+    await supabase.from("classroom_courses").upsert(
+      pick.map((course_id) => ({ classroom_id: classroom.id, course_id, assigned_by: userId })),
+      { onConflict: "classroom_id,course_id" },
+    );
+  }
+
+  revalidatePath("/teach");
+  redirect(`/school/${orgId}/classrooms/${classroom.id}`);
+}
+
 const SetOrgRoleInput = z.object({
   orgId: z.string().uuid(),
   userId: z.string().uuid(),
