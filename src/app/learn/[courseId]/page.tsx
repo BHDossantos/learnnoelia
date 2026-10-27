@@ -594,7 +594,9 @@ export default async function CoursePage(props: { params: Promise<{ courseId: st
               {mod.lessons.map((l, j) => {
                 const done = doneIds.has(l.id);
                 const isNext = l.id === nextId;
-                const locked = !done && !isNext; // must finish earlier lessons first
+                // Content is freely browsable — every lesson is openable. Checkpoint
+                // quizzes still require a passing score to count, but nothing is hidden.
+                const locked = false;
                 const score = scoreById.get(l.id);
                 const isQuiz = l.kind === "quiz";
                 const inner = (
@@ -623,7 +625,7 @@ export default async function CoursePage(props: { params: Promise<{ courseId: st
                       ~{l.estimated_minutes ?? 10} min
                     </span>
                     <span className="text-right text-sm" aria-hidden>
-                      {done ? "✅" : isNext ? "▶" : "🔒"}
+                      {done ? "✅" : isNext ? "▶" : "○"}
                       {isQuiz ? (l.id === finalQuizId ? " 🏆" : " ⭐") : ""}
                     </span>
                   </>

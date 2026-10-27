@@ -2,7 +2,6 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { LessonPlayer } from "@/components/LessonPlayer";
 import { requireOnboardedUser } from "@/lib/auth";
 import { assignVariant } from "@/lib/experiments";
-import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -43,14 +42,10 @@ export default async function LessonPage(
 
   const doneIds = new Set((progress ?? []).map((p) => p.lesson_id));
 
-  // Sequential gate (spec §4): you can only open a lesson you've completed or the
-  // single next-up one. Trying to skip ahead by URL bounces you to the next lesson.
-  const ordered = lessons ?? [];
-  const firstIncomplete = ordered.find((l) => !doneIds.has(l.id))?.id ?? null;
-  const allowed = doneIds.has(params.lessonId) || params.lessonId === firstIncomplete;
-  if (!allowed) {
-    redirect(firstIncomplete ? `/learn/${params.courseId}/${firstIncomplete}` : `/learn/${params.courseId}`);
-  }
+  // Content is freely browsable (like a textbook / Brightspace): a learner can
+  // open any lesson in the course and read the material in any order. Mastery is
+  // still enforced where it matters — checkpoint quizzes require a passing score
+  // to count toward completion — but the material is never hidden behind a lock.
   const outline = (lessons ?? []).map((l) => ({
     id: l.id,
     position: l.position,
