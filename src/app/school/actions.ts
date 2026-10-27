@@ -132,6 +132,36 @@ export async function assignCourseToClassroom(input: z.input<typeof ClassroomCou
   revalidatePath(`/school/${data.orgId}/classrooms/${data.classroomId}`);
 }
 
+const ClassroomCoursesInput = z.object({
+  orgId: z.string().uuid(),
+  classroomId: z.string().uuid(),
+  courseIds: z.array(z.string().uuid()).min(1).max(100),
+});
+
+// Assign several catalog (or own) courses to a classroom at once, auto-enrolling
+// every current student in each. Lets a teacher tick boxes in the catalog and
+// stand up a class in one step instead of building courses from scratch.
+export async function assignCoursesToClassroom(input: z.input<typeof ClassroomCoursesInput>) {
+  const data = ClassroomCoursesInput.parse(input);
+  const { supabase, userId } = await requireUserId();
+  const rows = data.courseIds.map((course_id) => ({
+    classroom_id: data.classroomId,
+    course_id,
+    assigned_by: userId,
+  }));
+  const { error } = await supabase
+    .from("classroom_courses")
+    .upsert(rows, { onConflict: "classroom_id,course_id" });
+  if (error) throw new Error(error.message);
+  for (const course_id of data.courseIds) {
+    await supabase.rpc("sync_classroom_course_enrollments", {
+      p_classroom: data.classroomId,
+      p_course: course_id,
+    });
+  }
+  revalidatePath(`/school/${data.orgId}/classrooms/${data.classroomId}`);
+}
+
 export async function unassignCourseFromClassroom(input: z.input<typeof ClassroomCourseInput>) {
   const data = ClassroomCourseInput.parse(input);
   const { supabase } = await requireUserId();

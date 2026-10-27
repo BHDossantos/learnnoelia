@@ -30,7 +30,7 @@ export default async function ClassroomPage(
     { data: classMembers },
     { data: myOrgMembership },
     { data: assignedCourses },
-    { data: myCourses },
+    { data: catalogCourses },
     { data: meetings },
     { data: announcements },
   ] = await Promise.all([
@@ -57,11 +57,16 @@ export default async function ClassroomPage(
         )
       `)
       .eq("classroom_id", params.classroomId),
+    // Assignable = the whole published catalog (platform content) PLUS the
+    // teacher's own courses. Teachers pick from this by subject; they don't have
+    // to build a course from scratch.
     supabase
       .from("courses")
-      .select("id,title,kind")
-      .eq("teacher_id", user.id)
-      .order("created_at", { ascending: false }),
+      .select("id,title,kind,school,subject")
+      .eq("published", true)
+      .or(`teacher_id.is.null,teacher_id.eq.${user.id}`)
+      .order("school")
+      .order("position"),
     supabase
       .from("class_meetings")
       .select("id,title,location,scheduled_at,duration_minutes,attendance(user_id)")
@@ -107,9 +112,14 @@ export default async function ClassroomPage(
       assignmentCount: (c.assignments ?? []).length,
     }));
   const assignedIds = new Set(assigned.map((c) => c.id));
-  const assignable = (myCourses ?? [])
+  const assignable = (catalogCourses ?? [])
     .filter((c: any) => !assignedIds.has(c.id))
-    .map((c: any) => ({ id: c.id, title: c.title, kind: c.kind }));
+    .map((c: any) => ({
+      id: c.id,
+      title: c.title,
+      school: (c.school as string) ?? c.kind ?? "other",
+      subject: c.subject as string | null,
+    }));
 
   const studentCount = inClassroom.filter((p) => p.role === "student").length;
   const meetingRows = (meetings ?? []).map((m: any) => ({
