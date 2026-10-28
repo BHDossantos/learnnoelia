@@ -59,20 +59,26 @@ export default async function CertificatePage(props: {
   // Issue the verifiable credential (idempotent by user+course). Best-effort:
   // needs migration 0035; the certificate still renders if it isn't applied.
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://learnnoelia.com";
+  // Issue via a SECURITY DEFINER function that re-verifies completion server-side
+  // (direct credential inserts are locked down so a credential can't be forged).
+  // Falls back to the legacy upsert only if the security migration isn't applied.
   try {
-    await supabase.from("credentials").upsert(
-      {
-        code: ref,
-        user_id: user.id,
-        course_id: course.id,
-        learner_name: profile?.display_name ?? "Learner",
-        course_title: course.title,
-        cefr_level: course.cefr_level,
-        skills_verified: [course.title],
-        mastery_pct: masteryPct,
-      },
-      { onConflict: "user_id,course_id", ignoreDuplicates: false },
-    );
+    const { error: rpcErr } = await supabase.rpc("issue_credential", { p_course_id: course.id });
+    if (rpcErr && /does not exist/i.test(rpcErr.message)) {
+      await supabase.from("credentials").upsert(
+        {
+          code: ref,
+          user_id: user.id,
+          course_id: course.id,
+          learner_name: profile?.display_name ?? "Learner",
+          course_title: course.title,
+          cefr_level: course.cefr_level,
+          skills_verified: [course.title],
+          mastery_pct: masteryPct,
+        },
+        { onConflict: "user_id,course_id", ignoreDuplicates: false },
+      );
+    }
   } catch {}
   const verifyUrl = `${siteUrl}/verify/${ref}`;
 

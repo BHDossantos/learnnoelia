@@ -105,8 +105,14 @@ export default async function CoursePage(props: { params: Promise<{ courseId: st
   }
   const doneCount = list.filter((l) => doneIds.has(l.id)).length;
   const pct = list.length ? Math.round((doneCount / list.length) * 100) : 0;
-  // The "next" lesson is the first incomplete one.
-  const nextId = list.find((l) => !doneIds.has(l.id))?.id ?? null;
+  // The "next" lesson is the first incomplete one — but don't funnel a brand-new
+  // learner into the opening diagnostic quiz. Lead with real content (the first
+  // reading/lesson); the optional diagnostic is still one click away in the list.
+  const openingDiagnosticId = list[0]?.kind === "quiz" ? list[0].id : null;
+  const nextId =
+    list.find((l) => !doneIds.has(l.id) && l.id !== openingDiagnosticId)?.id ??
+    list.find((l) => !doneIds.has(l.id))?.id ??
+    null;
 
   // Prerequisites (recommendation, not a hard lock): which are finished?
   const prereqIds: string[] = (course as any).prerequisite_ids ?? [];

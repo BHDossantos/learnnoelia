@@ -122,6 +122,11 @@ export function LessonPlayer({
     const questions: QuizQuestion[] = (
       Array.isArray(lesson.body?.questions) ? lesson.body.questions : []
     ).filter((q: any) => q && Array.isArray(q.options) && q.options.length > 0);
+    // The course's opening diagnostic quiz should never trap a learner: offer a
+    // direct link to the first real lesson (crucial on mobile, where the lesson
+    // sidebar is hidden and the quiz view fills the screen).
+    const isOpeningDiagnostic = outline.length > 0 && outline[0]?.id === lesson.id;
+    const firstContentLesson = outline.find((l) => l.kind !== "quiz");
     content = (
       <QuizLesson
         questions={questions}
@@ -132,6 +137,11 @@ export function LessonPlayer({
         // Checkpoint/final quizzes gate progress; a course's opening diagnostic
         // quiz does not (placement should never trap a new learner).
         gate={outline.length === 0 ? true : outline[0]?.id !== lesson.id}
+        skipToLessonsHref={
+          isOpeningDiagnostic && firstContentLesson
+            ? `/learn/${courseId}/${firstContentLesson.id}`
+            : undefined
+        }
       />
     );
   } else {
@@ -1280,7 +1290,7 @@ type MissedItem = { prompt: string; your: string; correct: string; explanation?:
 const QUIZ_PASS = 70;
 
 function QuizLesson({
-  questions, title, courseId, lessonId, streakDays = null, gate = false,
+  questions, title, courseId, lessonId, streakDays = null, gate = false, skipToLessonsHref,
 }: {
   questions: QuizQuestion[];
   title: string;
@@ -1288,6 +1298,7 @@ function QuizLesson({
   lessonId: string;
   streakDays?: number | null;
   gate?: boolean;
+  skipToLessonsHref?: string;
 }) {
   const [i, setI] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
@@ -1436,6 +1447,16 @@ function QuizLesson({
             Exit
           </Link>
         </div>
+        {/* Opening diagnostic is optional — always offer a way straight to the
+            reading/lessons (the sidebar is hidden on mobile). */}
+        {skipToLessonsHref && (
+          <div className="rounded-xl border border-brand-500/20 bg-brand-50 px-3 py-2 text-xs text-ink-700 dark:bg-brand-500/10">
+            This quick placement check is optional.{" "}
+            <Link href={skipToLessonsHref} className="font-semibold text-brand-600 underline">
+              Skip to the lessons →
+            </Link>
+          </div>
+        )}
         {/* Segmented progress: one segment per question, filled once answered. */}
         <div className="flex gap-1" aria-hidden>
           {questions.map((_, idx) => (
