@@ -1,5 +1,13 @@
 {
   "crons": [
-    { "path": "/api/push/send-reminders", "schedule": "0 17 * * *" }
-  ]
+    {
+      "path": "/api/push/send-reminders",
+      "schedule": "0 17 * * *"
+    }
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "fix/teacher-e2e-bdc3261": false
+    }
+  }
 }
