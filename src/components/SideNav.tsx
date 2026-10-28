@@ -123,6 +123,8 @@ export function SideNav({
       {WORKSPACES.map((it) => (
         <Item key={it.href} href={it.href} icon={it.icon} label={labels[it.key]} active={isActive(it.href)} />
       ))}
+      {/* Guided demo spans all roles — literal label (no per-locale key needed). */}
+      <Item href="/demo" icon="🎬" label="Guided demo" active={isActive("/demo")} />
 
       <div className="mt-auto pt-4">
         <Link

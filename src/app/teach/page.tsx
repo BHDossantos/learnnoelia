@@ -42,6 +42,17 @@ export default async function TeachHome() {
         <Link href="/teach/courses/new" className="btn-ghost text-sm">+ Build a course</Link>
       </header>
 
+      <Link
+        href="/demo"
+        className="card flex items-center justify-between gap-3 border-brand-500/30 bg-gradient-to-br from-brand-50 to-white hover:ring-1 hover:ring-brand-500/40 dark:from-white/[0.06] dark:to-transparent"
+      >
+        <div>
+          <p className="text-sm font-semibold">🎬 Take the guided demo</p>
+          <p className="text-xs text-ink-500">Walk through the whole app — student, teacher, and parent — from this account.</p>
+        </div>
+        <span className="shrink-0 text-brand-500">→</span>
+      </Link>
+
       {/* Your classes: where you assign catalog courses, open the gradebook, and
           grade papers. This is the main teacher workspace. */}
       <section className="space-y-2">

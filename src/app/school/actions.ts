@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { supabaseServer } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { ensureDemoStudent } from "@/lib/demo";
+import { provisionDemoClass } from "@/lib/demo";
 
 async function requireUserId() {
   const supabase = await supabaseServer();
@@ -79,127 +79,9 @@ export async function setupDemoClassroom(): Promise<void> {
   const ex = (existing as any)?.classroom;
   if (ex?.id && ex?.org_id) redirect(`/school/${ex.org_id}/classrooms/${ex.id}`);
 
-  const { data: profile } = await supabase
-    .from("profiles").select("display_name").eq("id", userId).maybeSingle();
-  const owner = (profile?.display_name as string | null)?.trim();
-  const orgName = owner ? `${owner}'s School` : "My School";
-
-  // Create the org (RPC also adds the caller as owner in org_members).
-  const { data: orgId, error: orgErr } = await supabase.rpc("create_organization", {
-    p_name: orgName,
-    p_type: "school",
-    p_country: null,
-  });
-  if (orgErr) throw new Error(orgErr.message);
-
-  // Create the demo classroom and make the teacher its classroom teacher.
-  const { data: classroom, error: clsErr } = await supabase
-    .from("classrooms")
-    .insert({ org_id: orgId, name: "Demo Class", term: "Fall 2026" })
-    .select("id")
-    .single();
-  if (clsErr) throw new Error(clsErr.message);
-  await supabase
-    .from("classroom_members")
-    .upsert(
-      { classroom_id: classroom.id, user_id: userId, role: "teacher" },
-      { onConflict: "classroom_id,user_id" },
-    );
-
-  // Pre-load a spread of catalog courses: up to 4 per subject so every school is
-  // represented and the class is rich but not overwhelming.
-  const { data: cat } = await supabase
-    .from("courses")
-    .select("id,school,position")
-    .eq("published", true)
-    .is("teacher_id", null)
-    .order("school")
-    .order("position");
-  const perSchool = new Map<string, number>();
-  const pick: string[] = [];
-  for (const c of (cat ?? []) as any[]) {
-    const n = perSchool.get(c.school) ?? 0;
-    if (n < 4) { pick.push(c.id as string); perSchool.set(c.school, n + 1); }
-  }
-  if (pick.length) {
-    await supabase.from("classroom_courses").upsert(
-      pick.map((course_id) => ({ classroom_id: classroom.id, course_id, assigned_by: userId })),
-      { onConflict: "classroom_id,course_id" },
-    );
-  }
-
-  // Put the shared "John Doe" demo student on the roster (with real progress) so
-  // the teacher has someone to grade, track, and demo the gradebook with.
-  const admin = supabaseAdmin();
-  if (admin) {
-    try {
-      const demoId = await ensureDemoStudent(admin);
-      await admin
-        .from("classroom_members")
-        .upsert({ classroom_id: classroom.id, user_id: demoId, role: "student" }, { onConflict: "classroom_id,user_id" });
-      if (pick.length) {
-        await admin.from("enrollments").upsert(
-          pick.map((course_id) => ({ user_id: demoId, course_id, role: "student" })),
-          { onConflict: "user_id,course_id" },
-        );
-      }
-    } catch {
-      // Demo student is a nicety — never block class creation on it.
-    }
-  }
-
-  // Seed one teacher-authored example course so "Your courses" isn't empty and
-  // the teacher can demo editing their own content.
-  try {
-    const { data: ownCourse } = await supabase
-      .from("courses")
-      .insert({
-        teacher_id: userId,
-        title: "My First Course (example) — Study Skills 101",
-        description: "An example course you own. Edit it, add lessons, or delete it anytime.",
-        kind: "humanities",
-        school: "humanities",
-        subject: "Study Skills",
-        language: "en",
-        published: true,
-      })
-      .select("id")
-      .single();
-    if (ownCourse?.id) {
-      await supabase.from("lessons").insert([
-        {
-          course_id: ownCourse.id,
-          position: 1,
-          title: "How to study effectively",
-          kind: "reading",
-          body: {
-            sections: [
-              { heading: "Spaced practice", text: "Short study sessions spread over days beat one long cram. Revisit material just as you are about to forget it and it sticks far longer." },
-              { heading: "Active recall", text: "Close the book and try to retrieve the answer from memory. The struggle to recall is what builds durable learning." },
-            ],
-          },
-          estimated_minutes: 8,
-        },
-        {
-          course_id: ownCourse.id,
-          position: 2,
-          title: "Quick check",
-          kind: "quiz",
-          body: {
-            questions: [
-              { prompt: "Which is more effective for long-term memory?", options: ["One long cram session", "Short sessions spread over days"], answer: 1, explanation: "Spaced practice beats massed practice for retention." },
-            ],
-          },
-          estimated_minutes: 3,
-        },
-      ]);
-    }
-  } catch {
-    // Example course is optional — don't block on it.
-  }
-
+  const { orgId, classroomId } = await provisionDemoClass(supabase, supabaseAdmin(), userId);
   revalidatePath("/teach");
-  redirect(`/school/${orgId}/classrooms/${classroom.id}`);
+  redirect(`/school/${orgId}/classrooms/${classroomId}`);
 }
 
 const SetOrgRoleInput = z.object({
