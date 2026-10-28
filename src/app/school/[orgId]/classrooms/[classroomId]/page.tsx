@@ -52,7 +52,7 @@ export default async function ClassroomPage(
       .from("classroom_courses")
       .select(`
         course:courses(
-          id,title,subject,kind,
+          id,title,subject,kind,teacher_id,
           assignments(id)
         )
       `)
@@ -110,6 +110,7 @@ export default async function ClassroomPage(
       subject: c.subject,
       kind: c.kind,
       assignmentCount: (c.assignments ?? []).length,
+      owned: c.teacher_id === user.id,
     }));
   const assignedIds = new Set(assigned.map((c) => c.id));
   const assignable = (catalogCourses ?? [])
@@ -139,7 +140,7 @@ export default async function ClassroomPage(
       ? { data: [] as any[] }
       : await supabase
           .from("assignments")
-          .select("id,title,kind,due_at,course_id")
+          .select("id,title,kind,due_at,course_id,teacher_id")
           .in("course_id", assignedCourseIds)
           .eq("published", true)
           .order("due_at", { ascending: true, nullsFirst: false })
@@ -241,7 +242,10 @@ export default async function ClassroomPage(
           <ul className="space-y-2">
             {(recentAssignments ?? []).map((a) => (
               <li key={a.id}>
-                <Link href={`/teach/assignments/${a.id}`} className="card flex items-center justify-between">
+                <Link
+                  href={(a as any).teacher_id === user.id ? `/teach/assignments/${a.id}` : `/learn/${a.course_id}`}
+                  className="card flex items-center justify-between"
+                >
                   <div>
                     <p className="font-medium">{a.title}</p>
                     <p className="text-xs text-ink-500 capitalize">

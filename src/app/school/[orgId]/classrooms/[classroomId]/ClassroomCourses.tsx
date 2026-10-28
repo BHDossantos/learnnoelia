@@ -12,6 +12,7 @@ type AssignedCourse = {
   subject: string | null;
   kind: string;
   assignmentCount: number;
+  owned?: boolean;
 };
 type AssignableCourse = { id: string; title: string; school: string; subject: string | null };
 
@@ -131,8 +132,14 @@ export function ClassroomCourses({
                 </p>
               </div>
               <div className="flex gap-2">
-                <Link href={`/teach/courses/${c.id}`} className="btn-ghost px-2 py-1 text-xs">
-                  Open
+                {/* Catalog courses aren't owned by this teacher, so the owner-only
+                    manage page would bounce them — preview those in the learner
+                    view instead; only owned courses open the manage page. */}
+                <Link
+                  href={c.owned ? `/teach/courses/${c.id}` : `/learn/${c.id}`}
+                  className="btn-ghost px-2 py-1 text-xs"
+                >
+                  {c.owned ? "Manage" : "Preview"}
                 </Link>
                 {canManage && (
                   <button onClick={() => remove(c.id)} disabled={pending} className="text-xs text-red-600">
