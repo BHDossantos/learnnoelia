@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { ensureDemoStudent, provisionDemoClass } from "@/lib/demo";
+import { ensureDemoStudent, provisionDemoClass, seedDemoTeacherWorkflow } from "@/lib/demo";
 
 // One click sets up the WHOLE app to demo from a single account: a teacher demo
 // class (with John Doe + catalog courses), a student enrollment for this account,
@@ -15,7 +15,7 @@ export async function setupFullDemo(): Promise<void> {
   if (!user) redirect("/sign-in");
   const admin = supabaseAdmin();
 
-  // 1) Teacher: a demo class (skip if they already run one).
+  // 1) Teacher: a demo class (reuse an existing one, else provision a new one).
   const { data: existing } = await supabase
     .from("classroom_members")
     .select("classroom:classrooms(id)")
@@ -23,8 +23,22 @@ export async function setupFullDemo(): Promise<void> {
     .eq("role", "teacher")
     .limit(1)
     .maybeSingle();
-  if (!(existing as any)?.classroom?.id) {
-    try { await provisionDemoClass(supabase, admin, user.id); } catch { /* best effort */ }
+  let classroomId: string | undefined = (existing as any)?.classroom?.id;
+  if (!classroomId) {
+    try { classroomId = (await provisionDemoClass(supabase, admin, user.id)).classroomId; } catch { /* best effort */ }
+  }
+
+  // Seed the full graded workflow (gradebook, graded paper, reviewed work) into
+  // the class — including an EXISTING demo class that predates this, so the
+  // teacher journey always has a real story. Idempotent.
+  if (admin && classroomId) {
+    try {
+      const demoId = await ensureDemoStudent(admin);
+      await admin
+        .from("classroom_members")
+        .upsert({ classroom_id: classroomId, user_id: demoId, role: "student" }, { onConflict: "classroom_id,user_id" });
+      await seedDemoTeacherWorkflow(admin, classroomId, user.id, demoId);
+    } catch { /* best effort */ }
   }
 
   // 2) Student: enroll this account in one flagship course so "My Learning" is live.
