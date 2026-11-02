@@ -35,6 +35,16 @@ Vercel Git deployments are disabled specifically for this review branch.
   Docker containers, images or user data were removed. The selector fixes retain
   PR #57's prior three-test evidence, not a new local browser pass.
 
+## Dependency follow-up
+
+Pinned Next and eslint-config-next to 15.5.28 to resolve the critical Next image
+optimization and Server Actions advisories, and updated transitive qs within its
+supported range. TypeScript, all 30 tests and the production Next build passed after these updates. The final production audit has **one high
+Zod advisory**, with no critical or moderate findings. Its advertised fix is a
+Zod 3-to-4 major migration, spanning 32 form/action/API modules. This remains
+unmet: migrate with request/form compatibility coverage and a working browser/
+database suite rather than forcing an unverified validation behavior change.
+
 ## Signed release evidence and outstanding gates
 
 Read-only GitHub job checks reconfirmed the historical [Play internal upload](https://github.com/BHDossantos/learnnoelia/actions/runs/37953690928) and
