@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { supabaseServer } from "@/lib/supabase/server";
 
-const Input = z.object({ courseId: z.string().uuid() });
+const Input = z.object({ courseId: z.string().guid() });
 
 export async function enrollInCourse(input: z.input<typeof Input>) {
   const { courseId } = Input.parse(input);

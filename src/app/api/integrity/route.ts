@@ -5,7 +5,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-const Body = z.object({ submissionId: z.string().uuid() });
+const Body = z.object({ submissionId: z.string().guid() });
 
 export async function POST(req: Request) {
   const parsed = Body.safeParse(await req.json());

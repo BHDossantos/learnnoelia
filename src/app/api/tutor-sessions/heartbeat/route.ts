@@ -4,7 +4,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-const Body = z.object({ sessionId: z.string().uuid() });
+const Body = z.object({ sessionId: z.string().guid() });
 
 // Called from the client every ~30s while the call is live.
 // Increments minutes_billed based on elapsed time and clamps to max budget.

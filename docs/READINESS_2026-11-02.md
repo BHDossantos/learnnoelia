@@ -65,3 +65,45 @@ Store review still requires product-owner confirmation of privacy/Data Safety
 answers, account deletion URL, age/children disclosures, screenshots, support,
 reviewer access and monetization policy for the hosted web app. These external
 store actions were not authorized or performed.
+
+## November 3 follow-up (supersedes the local database blocker above)
+
+Upgraded Zod to 4.6.7, Vitest to 5.1.0, Vite to 8.3.5 and the affected selector
+parser to 6.1.5. Kept PostgreSQL-compatible identifiers accepted with Zod's `guid`
+validator: switching to the stricter v4 `uuid` validator would reject existing
+seed/demo identifiers. Five additional route regressions cover identifiers,
+defaults, malformed requests and limits. All 35 unit tests and TypeScript pass.
+Production audit: zero findings. Full development audit: 19 moderate findings
+remain in glob/minimatch and Capacitor's xcode/uuid tooling chains; zero high or
+critical findings. Forced major transitive overrides were not applied because
+older consumers use incompatible callable/export APIs.
+
+Real local deletion verification passed with PostgreSQL 17 Alpine, GoTrue
+2.180.0, PostgREST 13.0.5 and Storage API 1.19.3 (not the storage stub). The full
+Supabase PostgreSQL image exceeded the Docker layer-store disk limit, so the
+smaller PostgreSQL image was initialized with local Supabase roles/auth helpers.
+All 45 application migrations applied successfully. Local Storage role grants
+and a PostgREST schema-cache reload were necessary for this disposable stack;
+no hosted database was mutated.
+
+The new browser regression creates two disposable users, uploads nested files
+as each authenticated owner, inserts personal rows, then deletes one account
+through Settings. It verifies removal of the auth user, profile, stats,
+submission and owned upload; the old auth session is rejected, Settings returns
+to sign-in, and the other account/file survives. This proves local service
+integration, not production Stripe cancellation, APNs/FCM or store acceptance.
+The regression refuses to run destructive setup against non-local hosts.
+Playwright optionally accepts PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH for an installed
+Chromium binary, while retaining its normal managed browser default.
+
+Production operations and store publication remain deferred. No current signed
+release, credential/security setting change or legal acceptance was performed.
+
+After fixing the disposable stack setup, the complete browser suite passed:
+37/37 tests, including auth redirects, real deletion, lesson practice,
+pronunciation, quiz, teacher create/edit/delete, page smoke checks, and actual
+file submission. Earlier setup-related failures were rerun successfully; none
+were skipped in this final run.
+The final Next.js production build also passed. It reports two existing lint
+warnings (SessionRoom effect dependency and AttachmentViewer image optimization),
+without build or type errors.

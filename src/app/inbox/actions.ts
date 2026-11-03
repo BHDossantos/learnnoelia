@@ -12,7 +12,7 @@ async function requireUserId() {
 }
 
 export async function markNotificationRead(input: { id: string }) {
-  const id = z.string().uuid().parse(input.id);
+  const id = z.string().guid().parse(input.id);
   const { supabase, userId } = await requireUserId();
   await supabase
     .from("notifications")

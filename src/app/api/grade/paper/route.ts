@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 // A scan/photo of a paper (base64, no data: prefix) or typed answers. Either
 // `text` or `image` is required.
 const Body = z.object({
-  studentId: z.string().uuid().optional(), // omit to grade your own work
+  studentId: z.string().guid().optional(), // omit to grade your own work
   title: z.string().max(200).optional(),
   subject: z.string().max(120).optional(),
   maxScore: z.number().int().min(1).max(1000).optional(),
