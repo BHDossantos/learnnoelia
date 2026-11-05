@@ -63,7 +63,7 @@ export function ConnectClient({ tutorId, tutor }: { tutorId: string; tutor: Tuto
             className="mt-2 w-full"
           />
           <span className="text-xs text-ink-500">
-            {maxMinutes} min · cap ${budget}. We only charge for time actually used.
+            {maxMinutes} min · cap ${budget}. Paid sessions are temporarily unavailable; no authorization or charge will be requested.
           </span>
         </label>
         <label className="flex items-start gap-2 text-sm">
@@ -76,10 +76,10 @@ export function ConnectClient({ tutorId, tutor }: { tutorId: string; tutor: Tuto
 
       <button
         onClick={start}
-        disabled={busy || !tutor.is_online}
+        disabled={true}
         className="btn-primary w-full"
       >
-        {!tutor.is_online ? "Tutor offline" : busy ? "Starting…" : `Start session — hold $${budget}`}
+        Paid tutoring temporarily unavailable
       </button>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <Link href="/tutors" className="btn-ghost block text-center">Cancel</Link>

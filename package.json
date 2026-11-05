@@ -46,6 +46,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.2",
+    "@electric-sql/pglite": "0.5.8",
     "@playwright/test": "^1.63.0",
     "@types/node": "^22.20.5",
     "@types/react": "^18",
