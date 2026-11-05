@@ -107,3 +107,18 @@ were skipped in this final run.
 The final Next.js production build also passed. It reports two existing lint
 warnings (SessionRoom effect dependency and AttachmentViewer image optimization),
 without build or type errors.
+
+## November 5 Assessment Builder reconciliation
+
+Integrated default branch 852c7db3fb8f935ed699eaa5b678d73a68ff60e3 into the existing
+candidate, preserving the Assessment Builder UI/navigation and grading database
+error handling. Git combined the changes without conflicts. Kept the existing
+teacher-selector and storage-stub fixes unchanged; no duplicate selector fix.
+The two new assessment ID validators use `guid()` to retain the candidate's
+PostgreSQL identifier compatibility after its Zod 4 upgrade. Six focused server
+action regressions cover legacy and version-4 identifiers, malformed IDs,
+teacher membership, assessment classroom ownership and answer-key write errors.
+Local validation: 47 unit tests, four storage HTTP tests and TypeScript passed.
+The earlier 37-browser-test result belongs to 894d294; hosted browser/build/native
+checks must be assessed on the new merge commit, not inferred from that result.
+No deployment, PR merge, signing or release-readiness claim is made here.
