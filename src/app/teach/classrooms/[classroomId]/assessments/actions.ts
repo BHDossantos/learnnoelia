@@ -261,6 +261,43 @@ export async function publishAttempt(formData: FormData) {
   redirect(`/teach/classrooms/${classroomId}/assessments/${attempt.assessment_id}/results`);
 }
 
+// Live monitoring snapshot for a teacher: who's taking the exam, their activity,
+// and focus-loss flags. Returns plain serializable rows for a polling client.
+export async function getMonitorData(classroomId: string, assessmentId: string) {
+  const { supabase } = await assertTeacher(classroomId);
+  const { data: attempts } = await supabase
+    .from("assessment_attempts")
+    .select("id,status,started_at,submitted_at,student:profiles(display_name)")
+    .eq("assessment_id", assessmentId);
+  const ids = (attempts ?? []).map((a: any) => a.id);
+  const [{ data: events }, { data: resp }] = ids.length
+    ? await Promise.all([
+        supabase.from("assessment_monitor_events").select("attempt_id,event_type,created_at").in("attempt_id", ids),
+        supabase.from("assessment_responses").select("attempt_id,updated_at").in("attempt_id", ids),
+      ])
+    : [{ data: [] as any[] }, { data: [] as any[] }];
+
+  const focusLost = new Map<string, number>();
+  for (const e of (events ?? []) as any[]) {
+    if (e.event_type === "focus_lost") focusLost.set(e.attempt_id, (focusLost.get(e.attempt_id) ?? 0) + 1);
+  }
+  const lastActivity = new Map<string, string>();
+  for (const r of (resp ?? []) as any[]) {
+    const prev = lastActivity.get(r.attempt_id);
+    if (!prev || r.updated_at > prev) lastActivity.set(r.attempt_id, r.updated_at);
+  }
+
+  return (attempts ?? []).map((a: any) => ({
+    id: a.id,
+    name: a.student?.display_name ?? "Student",
+    status: a.status as string,
+    startedAt: a.started_at as string,
+    submittedAt: a.submitted_at as string | null,
+    focusLost: focusLost.get(a.id) ?? 0,
+    lastActivity: lastActivity.get(a.id) ?? null,
+  }));
+}
+
 // Toggle anonymous grading (hide student identity while reviewing).
 export async function setAnonymous(formData: FormData) {
   const classroomId = String(formData.get("classroomId"));
