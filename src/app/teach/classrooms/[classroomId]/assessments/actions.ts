@@ -46,8 +46,8 @@ async function recomputeTotal(
 }
 
 const QuestionInput = z.object({
-  classroomId: z.string().uuid(),
-  assessmentId: z.string().uuid(),
+  classroomId: z.string().guid(),
+  assessmentId: z.string().guid(),
   kind: z.enum(["mcq", "multi", "short", "written"]),
   prompt: z.string().min(1).max(4000),
   points: z.coerce.number().min(0).max(1000).default(1),

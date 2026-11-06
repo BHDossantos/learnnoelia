@@ -6,7 +6,7 @@ import { headers } from "next/headers";
 import { supabaseServer } from "@/lib/supabase/server";
 
 const SubmitInput = z.object({
-  assignmentId: z.string().uuid(),
+  assignmentId: z.string().guid(),
   text: z.string().max(20000).default(""),
   filePath: z.string().max(500).nullish(),
 });

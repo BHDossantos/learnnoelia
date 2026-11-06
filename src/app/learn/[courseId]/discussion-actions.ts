@@ -5,7 +5,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { takeRateLimit } from "@/lib/rate-limit";
 
 export async function postDiscussion(formData: FormData) {
-  const courseId = z.string().uuid().parse(formData.get("courseId"));
+  const courseId = z.string().guid().parse(formData.get("courseId"));
   const parentId = formData.get("parentId")?.toString() || null;
   const body = z.string().min(2).max(4000).parse(formData.get("body")?.toString()?.trim());
 
@@ -29,8 +29,8 @@ export async function postDiscussion(formData: FormData) {
 }
 
 export async function deleteDiscussion(formData: FormData) {
-  const id = z.string().uuid().parse(formData.get("id"));
-  const courseId = z.string().uuid().parse(formData.get("courseId"));
+  const id = z.string().guid().parse(formData.get("id"));
+  const courseId = z.string().guid().parse(formData.get("courseId"));
   const supabase = await supabaseServer();
   // RLS enforces author-or-teacher; nothing more to check here.
   await supabase.from("discussions").delete().eq("id", id);

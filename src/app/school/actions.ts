@@ -41,7 +41,7 @@ export async function joinOrganization(input: { code: string }) {
 }
 
 const CreateClassroomInput = z.object({
-  orgId: z.string().uuid(),
+  orgId: z.string().guid(),
   name: z.string().min(1).max(120),
   gradeLevel: z.string().max(40).optional(),
   term: z.string().max(40).optional(),
@@ -85,8 +85,8 @@ export async function setupDemoClassroom(): Promise<void> {
 }
 
 const SetOrgRoleInput = z.object({
-  orgId: z.string().uuid(),
-  userId: z.string().uuid(),
+  orgId: z.string().guid(),
+  userId: z.string().guid(),
   role: z.enum(["owner", "admin", "teacher", "student"]),
 });
 
@@ -103,10 +103,10 @@ export async function setOrgMemberRole(input: z.input<typeof SetOrgRoleInput>) {
 }
 
 const ClassroomMemberInput = z.object({
-  classroomId: z.string().uuid(),
-  userId: z.string().uuid(),
+  classroomId: z.string().guid(),
+  userId: z.string().guid(),
   role: z.enum(["teacher", "student"]).default("student"),
-  orgId: z.string().uuid(),
+  orgId: z.string().guid(),
 });
 
 export async function addClassroomMember(input: z.input<typeof ClassroomMemberInput>) {
@@ -139,9 +139,9 @@ export async function removeClassroomMember(input: z.input<typeof ClassroomMembe
 }
 
 const ClassroomCourseInput = z.object({
-  orgId: z.string().uuid(),
-  classroomId: z.string().uuid(),
-  courseId: z.string().uuid(),
+  orgId: z.string().guid(),
+  classroomId: z.string().guid(),
+  courseId: z.string().guid(),
 });
 
 export async function assignCourseToClassroom(input: z.input<typeof ClassroomCourseInput>) {
@@ -161,9 +161,9 @@ export async function assignCourseToClassroom(input: z.input<typeof ClassroomCou
 }
 
 const ClassroomCoursesInput = z.object({
-  orgId: z.string().uuid(),
-  classroomId: z.string().uuid(),
-  courseIds: z.array(z.string().uuid()).min(1).max(100),
+  orgId: z.string().guid(),
+  classroomId: z.string().guid(),
+  courseIds: z.array(z.string().guid()).min(1).max(100),
 });
 
 // Assign several catalog (or own) courses to a classroom at once, auto-enrolling
