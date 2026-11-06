@@ -261,6 +261,110 @@ export async function publishAttempt(formData: FormData) {
   redirect(`/teach/classrooms/${classroomId}/assessments/${attempt.assessment_id}/results`);
 }
 
+// AI question generation — author several questions (with keys) from a topic.
+const GenInput = z.object({
+  classroomId: z.string().uuid(),
+  assessmentId: z.string().uuid(),
+  topic: z.string().min(2).max(500),
+  count: z.coerce.number().int().min(1).max(15).default(5),
+});
+export async function generateQuestions(input: z.input<typeof GenInput>): Promise<
+  { offline: true } | { offline: false; added: number }
+> {
+  const data = GenInput.parse(input);
+  const { supabase } = await assertTeacher(data.classroomId);
+  if (!process.env.ANTHROPIC_API_KEY) return { offline: true };
+
+  const { data: assessment } = await supabase
+    .from("assessments").select("id,classroom_id").eq("id", data.assessmentId).maybeSingle();
+  if (!assessment || assessment.classroom_id !== data.classroomId) throw new Error("Assessment not found");
+
+  const { anthropic, MODEL } = await import("@/lib/anthropic");
+  const msg = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 2500,
+    system:
+      `You are an exam author. Generate ${data.count} clear, unambiguous questions on the given topic. ` +
+      `Mix types: "mcq" (4 options, one correct), "truefalse", "short" (exact short answer), "numeric" (a number). ` +
+      `Return STRICT JSON only: an array of objects. Each: {"kind","prompt","points", ` +
+      `plus for mcq: "options":["..",".."] and "correct_index"; for truefalse: "correct_index" (0=True,1=False); ` +
+      `for short: "correct_text" (use "a|b" for alternatives); for numeric: "correct_number" and "tolerance"}.`,
+    messages: [{ role: "user", content: `Topic: ${data.topic}` }],
+  });
+  const text = msg.content.map((b) => (b.type === "text" ? b.text : "")).join("");
+  const cleaned = text.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+  let arr: any[];
+  try { arr = JSON.parse(cleaned); }
+  catch { const s = cleaned.indexOf("["), e = cleaned.lastIndexOf("]"); arr = JSON.parse(cleaned.slice(s, e + 1)); }
+  if (!Array.isArray(arr)) throw new Error("Could not parse the generated questions — try again.");
+
+  const { count } = await supabase
+    .from("assessment_questions").select("id", { count: "exact", head: true }).eq("assessment_id", data.assessmentId);
+  let pos = count ?? 0;
+  let added = 0;
+  for (const g of arr.slice(0, data.count)) {
+    const kind = ["mcq", "truefalse", "short", "numeric"].includes(g?.kind) ? g.kind : "mcq";
+    const options = kind === "truefalse" ? ["True", "False"] : (kind === "mcq" && Array.isArray(g.options) ? g.options.slice(0, 6).map(String) : null);
+    pos++;
+    const { data: q } = await supabase
+      .from("assessment_questions")
+      .insert({ assessment_id: data.assessmentId, position: pos, kind, prompt: String(g.prompt ?? "").slice(0, 4000), options, points: Number(g.points) || 1 })
+      .select("id")
+      .single();
+    if (!q) continue;
+    await supabase.from("assessment_answer_keys").insert({
+      question_id: q.id,
+      correct_index: (kind === "mcq" || kind === "truefalse") ? (Number(g.correct_index) || 0) : null,
+      correct_text: kind === "short" ? String(g.correct_text ?? "") : null,
+      correct_number: kind === "numeric" ? (Number(g.correct_number) || 0) : null,
+      number_tolerance: kind === "numeric" ? (Number(g.tolerance) || 0) : null,
+    });
+    added++;
+  }
+  await recomputeTotal(supabase, data.assessmentId);
+  revalidatePath(builderPath(data.classroomId, data.assessmentId));
+  return { offline: false, added };
+}
+
+// Duplicate an assessment (as a fresh draft), copying every question + answer key.
+export async function duplicateAssessment(formData: FormData) {
+  const classroomId = String(formData.get("classroomId"));
+  const assessmentId = String(formData.get("assessmentId"));
+  const { supabase, userId } = await assertTeacher(classroomId);
+  const { data: src } = await supabase
+    .from("assessments").select("title,description,time_limit_minutes,total_points,classroom_id").eq("id", assessmentId).maybeSingle();
+  if (!src || src.classroom_id !== classroomId) throw new Error("Assessment not found");
+
+  const { data: newA, error } = await supabase
+    .from("assessments")
+    .insert({ classroom_id: classroomId, created_by: userId, title: `${src.title} (copy)`, description: src.description, time_limit_minutes: src.time_limit_minutes, status: "draft", total_points: src.total_points })
+    .select("id")
+    .single();
+  if (error) throw new Error(`Could not duplicate: ${error.message}`);
+
+  const { data: qs } = await supabase
+    .from("assessment_questions")
+    .select("position,kind,prompt,options,points,assessment_answer_keys(correct_index,correct_indices,correct_text,correct_number,number_tolerance,rubric)")
+    .eq("assessment_id", assessmentId)
+    .order("position");
+  for (const q of (qs ?? []) as any[]) {
+    const { data: nq } = await supabase
+      .from("assessment_questions")
+      .insert({ assessment_id: newA.id, position: q.position, kind: q.kind, prompt: q.prompt, options: q.options, points: q.points })
+      .select("id")
+      .single();
+    const key = Array.isArray(q.assessment_answer_keys) ? q.assessment_answer_keys[0] : q.assessment_answer_keys;
+    if (nq && key) {
+      await supabase.from("assessment_answer_keys").insert({
+        question_id: nq.id,
+        correct_index: key.correct_index, correct_indices: key.correct_indices, correct_text: key.correct_text,
+        correct_number: key.correct_number, number_tolerance: key.number_tolerance, rubric: key.rubric,
+      });
+    }
+  }
+  redirect(builderPath(classroomId, newA.id));
+}
+
 export async function deleteAssessment(formData: FormData) {
   const classroomId = String(formData.get("classroomId"));
   const assessmentId = String(formData.get("assessmentId"));

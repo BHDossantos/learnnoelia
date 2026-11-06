@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { requireOnboardedUser } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase/server";
 import { AssessmentQuestionForm } from "./AssessmentQuestionForm";
-import { deleteQuestion, setStatus, deleteAssessment } from "../actions";
+import { GenerateWithAI } from "./GenerateWithAI";
+import { deleteQuestion, setStatus, deleteAssessment, duplicateAssessment } from "../actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Build assessment" };
@@ -69,6 +70,11 @@ export default async function AssessmentBuilderPage(
           <Link href={`/teach/classrooms/${classroomId}/assessments/${assessmentId}/results`} className="btn-ghost text-sm">
             Results &amp; review
           </Link>
+          <form action={duplicateAssessment}>
+            <input type="hidden" name="classroomId" value={classroomId} />
+            <input type="hidden" name="assessmentId" value={assessmentId} />
+            <button className="btn-ghost text-sm">Duplicate</button>
+          </form>
           {!published ? (
             <form action={setStatus}>
               <input type="hidden" name="classroomId" value={classroomId} />
@@ -126,6 +132,7 @@ export default async function AssessmentBuilderPage(
         </section>
       )}
 
+      <GenerateWithAI classroomId={classroomId} assessmentId={assessmentId} />
       <AssessmentQuestionForm classroomId={classroomId} assessmentId={assessmentId} />
 
       <form action={deleteAssessment} className="pt-2">

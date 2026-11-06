@@ -13,8 +13,12 @@ const STATUS_STYLE: Record<string, string> = {
   closed: "bg-amber-50 text-amber-700",
 };
 
-export default async function AssessmentsPage(props: { params: Promise<{ classroomId: string }> }) {
+export default async function AssessmentsPage(props: {
+  params: Promise<{ classroomId: string }>;
+  searchParams: Promise<{ q?: string }>;
+}) {
   const { classroomId } = await props.params;
+  const { q } = await props.searchParams;
   await requireOnboardedUser();
   const supabase = await supabaseServer();
 
@@ -25,11 +29,13 @@ export default async function AssessmentsPage(props: { params: Promise<{ classro
     .from("classrooms").select("id,name,org_id").eq("id", classroomId).maybeSingle();
   if (!classroom) notFound();
 
-  const { data: assessments } = await supabase
+  let query = supabase
     .from("assessments")
     .select("id,title,status,total_points,time_limit_minutes,created_at,assessment_questions(id)")
     .eq("classroom_id", classroomId)
     .order("created_at", { ascending: false });
+  if (q && q.trim()) query = query.ilike("title", `%${q.trim()}%`);
+  const { data: assessments } = await query;
 
   return (
     <div className="space-y-5">
@@ -55,8 +61,13 @@ export default async function AssessmentsPage(props: { params: Promise<{ classro
         </form>
       </section>
 
+      <form method="get" className="flex gap-2">
+        <input name="q" defaultValue={q ?? ""} placeholder="Search assessments by title…" className="flex-1 rounded-lg border border-black/10 bg-white px-3 py-1.5 text-sm dark:bg-white/5" />
+        <button className="btn-ghost text-sm">Search</button>
+      </form>
+
       {(assessments ?? []).length === 0 ? (
-        <p className="card text-sm text-ink-500">No assessments yet. Create one above.</p>
+        <p className="card text-sm text-ink-500">{q ? "No assessments match your search." : "No assessments yet. Create one above."}</p>
       ) : (
         <ul className="space-y-2">
           {(assessments ?? []).map((a: any) => (
