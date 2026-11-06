@@ -18,17 +18,27 @@ export function AttemptClient({
 }) {
   const [responses, setResponses] = useState<ResponseMap>(initialResponses);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const pending = useRef(0);
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const formRef = useRef<HTMLFormElement>(null);
 
   // Debounced autosave per question.
   function update(qid: string, value: any) {
     setResponses((r) => ({ ...r, [qid]: value }));
+    setSaving(true);
     clearTimeout(timers.current[qid]);
     timers.current[qid] = setTimeout(async () => {
-      setSaving(true);
-      try { await saveResponse({ attemptId, questionId: qid, response: value }); } catch {}
-      setSaving(false);
+      delete timers.current[qid];
+      pending.current++;
+      // Preserve answer order even when previous requests take longer.
+      queue.current = queue.current.catch(() => {}).then(async () => {
+        try { await saveResponse({ attemptId, questionId: qid, response: value }); }
+        catch { setSaveError(true); }
+        finally { pending.current--; setSaving(pending.current > 0 || Object.keys(timers.current).length > 0); }
+      });
     }, 500);
   }
 
@@ -57,7 +67,7 @@ export function AttemptClient({
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold">{title}</h1>
-          <p className="text-xs text-ink-500">{answeredCount}/{questions.length} answered · {saving ? "saving…" : "saved"}</p>
+          <p className="text-xs text-ink-500">{answeredCount}/{questions.length} answered · {saveError ? "autosave failed — submit to save all answers" : saving ? "saving…" : "saved"}</p>
         </div>
         {remaining != null && (
           <span className={`rounded-full px-3 py-1 text-sm font-semibold ${remaining < 60000 ? "bg-red-100 text-red-700" : "bg-black/5 text-ink-700"}`}>
@@ -66,6 +76,7 @@ export function AttemptClient({
         )}
       </header>
 
+      <fieldset disabled={submitting} className="space-y-4">
       {questions.map((q, i) => (
         <div key={q.id} className="card space-y-2">
           <p className="text-sm font-medium">{i + 1}. {q.prompt} <span className="text-xs text-ink-400">({q.points} pt{q.points === 1 ? "" : "s"})</span></p>
@@ -115,9 +126,17 @@ export function AttemptClient({
         </div>
       ))}
 
-      <form ref={formRef} action={submitAttempt}>
+      </fieldset>
+      <form ref={formRef} action={async (data) => {
+        setSubmitting(true);
+        Object.values(timers.current).forEach(clearTimeout);
+        timers.current = {};
+        try { await submitAttempt(data); }
+        finally { setSubmitting(false); }
+      }}>
         <input type="hidden" name="attemptId" value={attemptId} />
-        <button className="btn-primary w-full">Submit assessment</button>
+        <input type="hidden" name="responses" value={JSON.stringify(responses)} />
+        <button disabled={submitting} className="btn-primary w-full">{submitting ? "Submitting…" : "Submit assessment"}</button>
         <p className="mt-1 text-center text-xs text-ink-400">You can&apos;t change answers after submitting.</p>
       </form>
     </div>

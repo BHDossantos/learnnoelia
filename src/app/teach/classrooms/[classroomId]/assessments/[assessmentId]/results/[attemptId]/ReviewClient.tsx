@@ -31,7 +31,7 @@ export function ReviewClient({
           <p className="text-sm"><span className="text-ink-500">Answer:</span> <span className="font-medium">{it.answerText}</span></p>
 
           {it.kind === "written" ? (
-            <WrittenGrader classroomId={classroomId} assessmentId={assessmentId} attemptId={attemptId} item={it} />
+            <WrittenGrader locked={published} classroomId={classroomId} assessmentId={assessmentId} attemptId={attemptId} item={it} />
           ) : (
             <p className="text-sm">
               <span className="text-ink-500">Correct:</span> <span className="font-medium text-green-700">{it.correctText}</span>{" · "}
@@ -46,7 +46,7 @@ export function ReviewClient({
       <form action={publishAttempt} className="pt-1">
         <input type="hidden" name="classroomId" value={classroomId} />
         <input type="hidden" name="attemptId" value={attemptId} />
-        <button className="btn-primary w-full">{published ? "Re-publish results" : "Publish results"}</button>
+        <button disabled={published} className="btn-primary w-full">{published ? "Results published — scores locked" : "Publish results"}</button>
         <p className="mt-1 text-center text-xs text-ink-400">Totals every question and sends the score to the gradebook (and the student).</p>
       </form>
     </div>
@@ -54,12 +54,13 @@ export function ReviewClient({
 }
 
 function WrittenGrader({
-  classroomId, assessmentId, attemptId, item,
+  classroomId, assessmentId, attemptId, item, locked,
 }: {
   classroomId: string;
   assessmentId: string;
   attemptId: string;
   item: Item;
+  locked: boolean;
 }) {
   const [points, setPoints] = useState<string>(item.pointsAwarded != null ? String(item.pointsAwarded) : "");
   const [feedback, setFeedback] = useState(item.feedback);
@@ -96,7 +97,7 @@ function WrittenGrader({
   }
 
   return (
-    <div className="space-y-2 rounded-lg border border-black/5 bg-black/[0.02] p-2 dark:bg-white/[0.02]">
+    <fieldset disabled={locked} className="space-y-2 rounded-lg border border-black/5 bg-black/[0.02] p-2 dark:bg-white/[0.02]">
       {item.correctText && <p className="text-xs text-ink-500"><span className="font-semibold">Rubric:</span> {item.correctText}</p>}
       <div className="flex flex-wrap items-end gap-2">
         <label className="text-sm">
@@ -112,6 +113,6 @@ function WrittenGrader({
       </div>
       <textarea value={feedback} onChange={(e) => setFeedback(e.target.value)} rows={2} placeholder="Feedback for the student (optional)" className="w-full rounded-lg border border-black/10 bg-white px-2 py-1 text-sm dark:bg-white/5" />
       {aiNote && <p className="text-xs text-ink-500">{aiNote}</p>}
-    </div>
+    </fieldset>
   );
 }

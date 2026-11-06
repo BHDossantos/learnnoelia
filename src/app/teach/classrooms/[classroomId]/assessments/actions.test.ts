@@ -22,7 +22,7 @@ vi.mock("@/lib/supabase/server", () => ({ supabaseServer: async () => ({
   },
 }) }));
 
-import { addQuestion } from "./actions";
+import { addQuestion, setWrittenScore, publishAttempt } from "./actions";
 const legacyId = "11111111-1111-1111-1111-111111111111";
 const input = (id = legacyId) => ({
   classroomId: id, assessmentId: id, kind: "short" as const,
@@ -66,6 +66,21 @@ describe("Assessment Builder reconciliation", () => {
   it("does not report success when storing the answer key fails", async () => {
     m.insertKey.mockResolvedValue({ error: { message: "write failed" } });
     await expect(addQuestion(input())).rejects.toThrow("Could not save answer key");
+    expect(m.revalidate).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("Assessment grading transactions", () => {
+  it("surfaces missing-row scoring failures from the transaction", async () => {
+    m.rpc.mockImplementation(async (name: string) => name === "is_classroom_teacher" ? { data: true } : { error: { message: "Response not found" } });
+    await expect(setWrittenScore({ classroomId: legacyId, attemptId: legacyId, questionId: legacyId, points: 1 })).rejects.toThrow("Response not found");
+    expect(m.rpc).toHaveBeenCalledWith("score_assessment_written", expect.objectContaining({ p_attempt: legacyId, p_points: 1 }));
+  });
+  it("does not revalidate a partially failed publication", async () => {
+    m.rpc.mockImplementation(async (name: string) => name === "is_classroom_teacher" ? { data: true } : { error: { message: "gradebook failed" } });
+    const form = new FormData();form.set("classroomId", legacyId);form.set("attemptId", legacyId);
+    await expect(publishAttempt(form)).rejects.toThrow("gradebook failed");
     expect(m.revalidate).not.toHaveBeenCalled();
   });
 });
