@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { saveResponse, submitAttempt } from "../actions";
 
-type Q = { id: string; kind: "mcq" | "multi" | "short" | "written"; prompt: string; options: string[] | null; points: number };
+type Q = { id: string; kind: "mcq" | "multi" | "short" | "written" | "truefalse" | "numeric"; prompt: string; options: string[] | null; points: number };
 type ResponseMap = Record<string, any>;
 
 export function AttemptClient({
@@ -70,7 +70,7 @@ export function AttemptClient({
         <div key={q.id} className="card space-y-2">
           <p className="text-sm font-medium">{i + 1}. {q.prompt} <span className="text-xs text-ink-400">({q.points} pt{q.points === 1 ? "" : "s"})</span></p>
 
-          {q.kind === "mcq" && (q.options ?? []).map((opt, j) => (
+          {(q.kind === "mcq" || q.kind === "truefalse") && (q.options ?? []).map((opt, j) => (
             <label key={j} className="flex items-center gap-2 rounded-lg border border-black/10 px-3 py-2 text-sm">
               <input type="radio" name={q.id} checked={responses[q.id]?.index === j} onChange={() => update(q.id, { index: j })} />
               <span>{String.fromCharCode(65 + j)}. {opt}</span>
@@ -100,6 +100,17 @@ export function AttemptClient({
               onChange={(e) => update(q.id, { text: e.target.value })}
               placeholder="Your answer"
               className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm dark:bg-white/5"
+            />
+          )}
+
+          {q.kind === "numeric" && (
+            <input
+              type="number"
+              step="any"
+              value={responses[q.id]?.value ?? ""}
+              onChange={(e) => update(q.id, e.target.value === "" ? null : { value: Number(e.target.value) })}
+              placeholder="Your numeric answer"
+              className="w-48 rounded-lg border border-black/10 bg-white px-3 py-2 text-sm dark:bg-white/5"
             />
           )}
 

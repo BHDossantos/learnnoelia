@@ -48,13 +48,15 @@ async function recomputeTotal(
 const QuestionInput = z.object({
   classroomId: z.string().uuid(),
   assessmentId: z.string().uuid(),
-  kind: z.enum(["mcq", "multi", "short", "written"]),
+  kind: z.enum(["mcq", "multi", "short", "written", "truefalse", "numeric"]),
   prompt: z.string().min(1).max(4000),
   points: z.coerce.number().min(0).max(1000).default(1),
   options: z.array(z.string().min(1).max(500)).max(10).optional(),
   correctIndex: z.coerce.number().int().min(0).optional(),
   correctIndices: z.array(z.coerce.number().int().min(0)).optional(),
   correctText: z.string().max(1000).optional(),
+  correctNumber: z.coerce.number().optional(),
+  numberTolerance: z.coerce.number().min(0).optional(),
   rubric: z.string().max(4000).optional(),
 });
 
@@ -70,7 +72,8 @@ export async function addQuestion(input: z.input<typeof QuestionInput>) {
 
   const { count } = await supabase
     .from("assessment_questions").select("id", { count: "exact", head: true }).eq("assessment_id", data.assessmentId);
-  const needsOptions = data.kind === "mcq" || data.kind === "multi";
+  const needsOptions = data.kind === "mcq" || data.kind === "multi" || data.kind === "truefalse";
+  const options = data.kind === "truefalse" ? ["True", "False"] : (needsOptions ? (data.options ?? []) : null);
   const { data: q, error } = await supabase
     .from("assessment_questions")
     .insert({
@@ -78,7 +81,7 @@ export async function addQuestion(input: z.input<typeof QuestionInput>) {
       position: (count ?? 0) + 1,
       kind: data.kind,
       prompt: data.prompt,
-      options: needsOptions ? (data.options ?? []) : null,
+      options,
       points: data.points,
     })
     .select("id")
@@ -87,9 +90,11 @@ export async function addQuestion(input: z.input<typeof QuestionInput>) {
 
   const { error: keyErr } = await supabase.from("assessment_answer_keys").insert({
     question_id: q.id,
-    correct_index: data.kind === "mcq" ? (data.correctIndex ?? 0) : null,
+    correct_index: (data.kind === "mcq" || data.kind === "truefalse") ? (data.correctIndex ?? 0) : null,
     correct_indices: data.kind === "multi" ? (data.correctIndices ?? []) : null,
     correct_text: data.kind === "short" ? (data.correctText ?? "") : null,
+    correct_number: data.kind === "numeric" ? (data.correctNumber ?? 0) : null,
+    number_tolerance: data.kind === "numeric" ? (data.numberTolerance ?? 0) : null,
     rubric: data.kind === "written" ? (data.rubric ?? "") : null,
   });
   if (keyErr) throw new Error(`Could not save answer key: ${keyErr.message}`);

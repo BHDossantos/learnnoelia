@@ -9,7 +9,8 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Build assessment" };
 
 const KIND_LABEL: Record<string, string> = {
-  mcq: "Multiple choice", multi: "Multi-select", short: "Short answer", written: "Written",
+  mcq: "Multiple choice", multi: "Multi-select", truefalse: "True/False",
+  short: "Short answer", numeric: "Numeric", written: "Written",
 };
 
 export default async function AssessmentBuilderPage(
@@ -32,7 +33,7 @@ export default async function AssessmentBuilderPage(
   // Teachers may read the answer keys (students cannot — enforced by RLS).
   const { data: questions } = await supabase
     .from("assessment_questions")
-    .select("id,position,kind,prompt,options,points,assessment_answer_keys(correct_index,correct_indices,correct_text,rubric)")
+    .select("id,position,kind,prompt,options,points,assessment_answer_keys(correct_index,correct_indices,correct_text,correct_number,number_tolerance,rubric)")
     .eq("assessment_id", assessmentId)
     .order("position");
 
@@ -41,9 +42,10 @@ export default async function AssessmentBuilderPage(
     const key = Array.isArray(k) ? k[0] : k;
     if (!key) return "—";
     const opts: string[] = Array.isArray(q.options) ? q.options : [];
-    if (q.kind === "mcq") return opts[key.correct_index] ?? `#${key.correct_index}`;
+    if (q.kind === "mcq" || q.kind === "truefalse") return opts[key.correct_index] ?? `#${key.correct_index}`;
     if (q.kind === "multi") return (key.correct_indices ?? []).map((i: number) => opts[i] ?? `#${i}`).join(", ");
     if (q.kind === "short") return key.correct_text ?? "—";
+    if (q.kind === "numeric") return key.correct_number != null ? `${key.correct_number}${key.number_tolerance ? ` ± ${key.number_tolerance}` : ""}` : "—";
     if (q.kind === "written") return "Rubric-graded";
     return "—";
   }

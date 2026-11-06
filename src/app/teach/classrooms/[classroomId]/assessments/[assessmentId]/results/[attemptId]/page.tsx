@@ -27,7 +27,7 @@ export default async function AttemptReviewPage(
   // Teacher may read answer keys (RLS); students cannot.
   const { data: questions } = await supabase
     .from("assessment_questions")
-    .select("id,position,kind,prompt,options,points,assessment_answer_keys(correct_index,correct_indices,correct_text,rubric)")
+    .select("id,position,kind,prompt,options,points,assessment_answer_keys(correct_index,correct_indices,correct_text,correct_number,number_tolerance,rubric)")
     .eq("assessment_id", assessmentId)
     .order("position");
   const { data: responses } = await supabase
@@ -43,15 +43,17 @@ export default async function AttemptReviewPage(
     const answerText = (() => {
       const v = r?.response;
       if (!v) return "(no answer)";
-      if (q.kind === "mcq") return opts[v.index] ?? `#${v.index}`;
+      if (q.kind === "mcq" || q.kind === "truefalse") return opts[v.index] ?? `#${v.index}`;
       if (q.kind === "multi") return (v.indices ?? []).map((i: number) => opts[i] ?? `#${i}`).join(", ");
+      if (q.kind === "numeric") return v.value != null ? String(v.value) : "(no answer)";
       return v.text ?? "(no answer)";
     })();
     const correctText = (() => {
       if (!key) return "";
-      if (q.kind === "mcq") return opts[key.correct_index] ?? "";
+      if (q.kind === "mcq" || q.kind === "truefalse") return opts[key.correct_index] ?? "";
       if (q.kind === "multi") return (key.correct_indices ?? []).map((i: number) => opts[i] ?? `#${i}`).join(", ");
       if (q.kind === "short") return key.correct_text ?? "";
+      if (q.kind === "numeric") return key.correct_number != null ? `${key.correct_number}${key.number_tolerance ? ` ± ${key.number_tolerance}` : ""}` : "";
       return key.rubric ?? "";
     })();
     return {
