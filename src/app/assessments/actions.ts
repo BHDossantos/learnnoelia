@@ -5,6 +5,7 @@ import { z } from "zod";
 import { supabaseServer } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { gradeResponse, tallyAttempt, type ResponseValue } from "@/lib/assessments";
+import { feedAssessmentMastery } from "@/lib/mastery";
 
 async function requireStudent() {
   const supabase = await supabaseServer();
@@ -67,7 +68,7 @@ export async function submitAttempt(formData: FormData) {
     .from("assessments").select("id,title,classroom_id,created_by").eq("id", attempt.assessment_id).single();
   const { data: questions } = await admin
     .from("assessment_questions")
-    .select("id,kind,points,position,assessment_answer_keys(correct_index,correct_indices,correct_text,rubric)")
+    .select("id,kind,prompt,points,position,assessment_answer_keys(correct_index,correct_indices,correct_text,rubric)")
     .eq("assessment_id", attempt.assessment_id)
     .order("position");
   const { data: responses } = await admin
@@ -118,6 +119,16 @@ export async function submitAttempt(formData: FormData) {
         { onConflict: "grade_item_id,student_id" },
       );
     }
+
+    // Analyze: feed the mastery engine + misconceptions (per-question).
+    await feedAssessmentMastery(
+      admin,
+      userId,
+      (questions ?? []).map((q: any) => {
+        const u = updates.find((x) => x.question_id === q.id);
+        return { questionId: q.id, prompt: q.prompt ?? "", points: Number(q.points) || 0, pointsAwarded: u?.points_awarded ?? null, isCorrect: u?.is_correct ?? null };
+      }),
+    );
   }
 
   revalidatePath(`/assessments/${attempt.assessment_id}`);

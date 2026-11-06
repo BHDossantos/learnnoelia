@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { feedAssessmentMastery } from "@/lib/mastery";
 
 // All assessment mutations. RLS enforces teacher-only writes; we also check
 // membership up front for a clean error and to resolve the revalidate path.
@@ -211,8 +213,8 @@ export async function publishAttempt(formData: FormData) {
   if (!attempt || !a || a.classroom_id !== classroomId) throw new Error("Attempt not found");
 
   const [{ data: resp }, { data: qs }] = await Promise.all([
-    supabase.from("assessment_responses").select("points_awarded").eq("attempt_id", attemptId),
-    supabase.from("assessment_questions").select("points").eq("assessment_id", attempt.assessment_id),
+    supabase.from("assessment_responses").select("question_id,points_awarded,is_correct").eq("attempt_id", attemptId),
+    supabase.from("assessment_questions").select("id,points,prompt").eq("assessment_id", attempt.assessment_id),
   ]);
   const score = (resp ?? []).reduce((s: number, r: any) => s + (Number(r.points_awarded) || 0), 0);
   const maxScore = (qs ?? []).reduce((s: number, q: any) => s + (Number(q.points) || 0), 0);
@@ -234,6 +236,21 @@ export async function publishAttempt(formData: FormData) {
     .from("grade_entries")
     .upsert({ grade_item_id: gi.id, student_id: attempt.student_id, points: score, graded_by: a.created_by, graded_at: now }, { onConflict: "grade_item_id,student_id" });
   if (geErr) throw new Error(`Could not record the grade: ${geErr.message}`);
+
+  // Analyze: feed the student's mastery + misconceptions (service role, since it
+  // writes the student's skill_states from the teacher's session).
+  const admin = supabaseAdmin();
+  if (admin) {
+    const respByQ = new Map((resp ?? []).map((r: any) => [r.question_id, r]));
+    await feedAssessmentMastery(
+      admin,
+      attempt.student_id,
+      (qs ?? []).map((q: any) => {
+        const r = respByQ.get(q.id);
+        return { questionId: q.id, prompt: q.prompt ?? "", points: Number(q.points) || 0, pointsAwarded: r?.points_awarded ?? null, isCorrect: r?.is_correct ?? null };
+      }),
+    );
+  }
 
   revalidatePath(`/teach/classrooms/${classroomId}/assessments/${attempt.assessment_id}/results`);
   redirect(`/teach/classrooms/${classroomId}/assessments/${attempt.assessment_id}/results`);
