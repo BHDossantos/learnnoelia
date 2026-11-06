@@ -63,7 +63,10 @@ export default async function AssessmentBuilderPage(
             <span className="font-medium capitalize">{assessment.status}</span>
           </p>
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Link href={`/teach/classrooms/${classroomId}/assessments/${assessmentId}/results`} className="btn-ghost text-sm">
+            Results &amp; review
+          </Link>
           {!published ? (
             <form action={setStatus}>
               <input type="hidden" name="classroomId" value={classroomId} />
