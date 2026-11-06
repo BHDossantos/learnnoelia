@@ -4,7 +4,7 @@ import { requireOnboardedUser } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase/server";
 import { AssessmentQuestionForm } from "./AssessmentQuestionForm";
 import { GenerateWithAI } from "./GenerateWithAI";
-import { deleteQuestion, setStatus, deleteAssessment, duplicateAssessment } from "../actions";
+import { deleteQuestion, setStatus, deleteAssessment, duplicateAssessment, setAnonymous } from "../actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Build assessment" };
@@ -26,7 +26,7 @@ export default async function AssessmentBuilderPage(
 
   const { data: assessment } = await supabase
     .from("assessments")
-    .select("id,title,status,total_points,time_limit_minutes,classroom_id")
+    .select("id,title,status,total_points,time_limit_minutes,anonymous_grading,classroom_id")
     .eq("id", assessmentId)
     .maybeSingle();
   if (!assessment || assessment.classroom_id !== classroomId) notFound();
@@ -92,6 +92,20 @@ export default async function AssessmentBuilderPage(
           )}
         </div>
       </header>
+
+      {/* Settings: anonymous grading */}
+      <form action={setAnonymous} className="card flex items-center justify-between gap-2">
+        <div>
+          <p className="text-sm font-medium">Anonymous grading</p>
+          <p className="text-xs text-ink-500">Hide student names while reviewing, to reduce bias.</p>
+        </div>
+        <input type="hidden" name="classroomId" value={classroomId} />
+        <input type="hidden" name="assessmentId" value={assessmentId} />
+        <input type="hidden" name="value" value={String(!(assessment as any).anonymous_grading)} />
+        <button className={`rounded-full px-3 py-1 text-xs font-semibold ${(assessment as any).anonymous_grading ? "bg-brand-500 text-white" : "bg-black/10 text-ink-600"}`}>
+          {(assessment as any).anonymous_grading ? "On" : "Off"}
+        </button>
+      </form>
 
       {published && (
         <p className="card border-green-300 bg-green-50 text-sm text-green-800 dark:border-green-500/30 dark:bg-green-500/10">

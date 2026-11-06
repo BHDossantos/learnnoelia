@@ -261,6 +261,41 @@ export async function publishAttempt(formData: FormData) {
   redirect(`/teach/classrooms/${classroomId}/assessments/${attempt.assessment_id}/results`);
 }
 
+// Toggle anonymous grading (hide student identity while reviewing).
+export async function setAnonymous(formData: FormData) {
+  const classroomId = String(formData.get("classroomId"));
+  const assessmentId = String(formData.get("assessmentId"));
+  const value = String(formData.get("value")) === "true";
+  const { supabase } = await assertTeacher(classroomId);
+  const { error } = await supabase.from("assessments").update({ anonymous_grading: value }).eq("id", assessmentId).eq("classroom_id", classroomId);
+  if (error) throw new Error(`Could not update: ${error.message}`);
+  revalidatePath(builderPath(classroomId, assessmentId));
+  revalidatePath(`${builderPath(classroomId, assessmentId)}/results`);
+}
+
+// Set a student's extra-time accommodation (percent). 0 clears it.
+const AccomInput = z.object({
+  classroomId: z.string().uuid(),
+  assessmentId: z.string().uuid(),
+  studentId: z.string().uuid(),
+  extraTimePct: z.coerce.number().int().min(0).max(300),
+});
+export async function setAccommodation(input: z.input<typeof AccomInput>) {
+  const data = AccomInput.parse(input);
+  const { supabase } = await assertTeacher(data.classroomId);
+  if (data.extraTimePct === 0) {
+    await supabase.from("assessment_accommodations").delete().eq("assessment_id", data.assessmentId).eq("student_id", data.studentId);
+  } else {
+    const { error } = await supabase.from("assessment_accommodations").upsert(
+      { assessment_id: data.assessmentId, student_id: data.studentId, extra_time_pct: data.extraTimePct },
+      { onConflict: "assessment_id,student_id" },
+    );
+    if (error) throw new Error(`Could not save accommodation: ${error.message}`);
+  }
+  revalidatePath(`${builderPath(data.classroomId, data.assessmentId)}/results`);
+  return { ok: true };
+}
+
 // AI question generation — author several questions (with keys) from a topic.
 const GenInput = z.object({
   classroomId: z.string().uuid(),

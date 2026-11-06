@@ -17,12 +17,16 @@ export default async function AttemptReviewPage(
   const { data: isTeacher } = await supabase.rpc("is_classroom_teacher", { p_classroom: classroomId });
   if (!isTeacher) notFound();
 
-  const { data: attempt } = await supabase
-    .from("assessment_attempts")
-    .select("id,assessment_id,status,score,max_score,published,student:profiles(display_name)")
-    .eq("id", attemptId)
-    .maybeSingle();
+  const [{ data: attempt }, { data: a2 }] = await Promise.all([
+    supabase
+      .from("assessment_attempts")
+      .select("id,assessment_id,status,score,max_score,published,student:profiles(display_name)")
+      .eq("id", attemptId)
+      .maybeSingle(),
+    supabase.from("assessments").select("anonymous_grading").eq("id", assessmentId).maybeSingle(),
+  ]);
   if (!attempt || attempt.assessment_id !== assessmentId) notFound();
+  const anon = !!(a2 as any)?.anonymous_grading;
 
   // Teacher may read answer keys (RLS); students cannot.
   const { data: questions } = await supabase
@@ -73,7 +77,7 @@ export default async function AttemptReviewPage(
     <div className="space-y-4">
       <Link href={`/teach/classrooms/${classroomId}/assessments/${assessmentId}/results`} className="text-sm text-brand-500">← Results</Link>
       <header>
-        <h1 className="text-2xl font-bold">{(attempt as any).student?.display_name ?? "Student"}</h1>
+        <h1 className="text-2xl font-bold">{anon ? "Anonymous student" : ((attempt as any).student?.display_name ?? "Student")}</h1>
         <p className="text-sm text-ink-500">
           {attempt.status === "submitted" ? "Needs review" : attempt.published ? "Published" : "Graded"} ·{" "}
           {attempt.score ?? 0}/{attempt.max_score ?? 0} pts
