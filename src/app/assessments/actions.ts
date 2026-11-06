@@ -47,7 +47,7 @@ export async function submitAttempt(formData: FormData) {
   const admin = supabaseAdmin();
   if (!admin) throw new Error("Grading is not configured on this deployment.");
   const { data: questions, error: questionError } = await admin.from("assessment_questions")
-    .select("id,kind,points,assessment_answer_keys(correct_index,correct_indices,correct_text,rubric)")
+    .select("id,kind,points,assessment_answer_keys(correct_index,correct_indices,correct_text,correct_number,number_tolerance,rubric)")
     .eq("assessment_id", attempt.assessment_id).order("position");
   if (questionError || !questions?.length) throw new Error("Could not load assessment questions. Please retry.");
   const ids = new Set(questions.map(q => q.id));

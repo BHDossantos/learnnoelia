@@ -4,7 +4,7 @@ import { setWrittenScore, aiGradeWritten, publishAttempt } from "../../../action
 
 type Item = {
   id: string;
-  kind: "mcq" | "multi" | "short" | "written";
+  kind: "mcq" | "multi" | "short" | "written" | "truefalse" | "numeric";
   prompt: string;
   points: number;
   answerText: string;

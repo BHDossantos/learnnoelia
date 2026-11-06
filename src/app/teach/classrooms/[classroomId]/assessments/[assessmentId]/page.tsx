@@ -3,13 +3,15 @@ import { notFound } from "next/navigation";
 import { requireOnboardedUser } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase/server";
 import { AssessmentQuestionForm } from "./AssessmentQuestionForm";
-import { deleteQuestion, setStatus, deleteAssessment } from "../actions";
+import { GenerateWithAI } from "./GenerateWithAI";
+import { deleteQuestion, setStatus, deleteAssessment, duplicateAssessment, setAnonymous } from "../actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Build assessment" };
 
 const KIND_LABEL: Record<string, string> = {
-  mcq: "Multiple choice", multi: "Multi-select", short: "Short answer", written: "Written",
+  mcq: "Multiple choice", multi: "Multi-select", truefalse: "True/False",
+  short: "Short answer", numeric: "Numeric", written: "Written",
 };
 
 export default async function AssessmentBuilderPage(
@@ -24,7 +26,7 @@ export default async function AssessmentBuilderPage(
 
   const { data: assessment } = await supabase
     .from("assessments")
-    .select("id,title,status,total_points,time_limit_minutes,classroom_id")
+    .select("id,title,status,total_points,time_limit_minutes,anonymous_grading,classroom_id")
     .eq("id", assessmentId)
     .maybeSingle();
   if (!assessment || assessment.classroom_id !== classroomId) notFound();
@@ -32,7 +34,7 @@ export default async function AssessmentBuilderPage(
   // Teachers may read the answer keys (students cannot — enforced by RLS).
   const { data: questions } = await supabase
     .from("assessment_questions")
-    .select("id,position,kind,prompt,options,points,assessment_answer_keys(correct_index,correct_indices,correct_text,rubric)")
+    .select("id,position,kind,prompt,options,points,assessment_answer_keys(correct_index,correct_indices,correct_text,correct_number,number_tolerance,rubric)")
     .eq("assessment_id", assessmentId)
     .order("position");
 
@@ -41,9 +43,10 @@ export default async function AssessmentBuilderPage(
     const key = Array.isArray(k) ? k[0] : k;
     if (!key) return "—";
     const opts: string[] = Array.isArray(q.options) ? q.options : [];
-    if (q.kind === "mcq") return opts[key.correct_index] ?? `#${key.correct_index}`;
+    if (q.kind === "mcq" || q.kind === "truefalse") return opts[key.correct_index] ?? `#${key.correct_index}`;
     if (q.kind === "multi") return (key.correct_indices ?? []).map((i: number) => opts[i] ?? `#${i}`).join(", ");
     if (q.kind === "short") return key.correct_text ?? "—";
+    if (q.kind === "numeric") return key.correct_number != null ? `${key.correct_number}${key.number_tolerance ? ` ± ${key.number_tolerance}` : ""}` : "—";
     if (q.kind === "written") return "Rubric-graded";
     return "—";
   }
@@ -67,6 +70,11 @@ export default async function AssessmentBuilderPage(
           <Link href={`/teach/classrooms/${classroomId}/assessments/${assessmentId}/results`} className="btn-ghost text-sm">
             Results &amp; review
           </Link>
+          <form action={duplicateAssessment}>
+            <input type="hidden" name="classroomId" value={classroomId} />
+            <input type="hidden" name="assessmentId" value={assessmentId} />
+            <button className="btn-ghost text-sm">Duplicate</button>
+          </form>
           {!published ? (
             <form action={setStatus}>
               <input type="hidden" name="classroomId" value={classroomId} />
@@ -84,6 +92,20 @@ export default async function AssessmentBuilderPage(
           )}
         </div>
       </header>
+
+      {/* Settings: anonymous grading */}
+      <form action={setAnonymous} className="card flex items-center justify-between gap-2">
+        <div>
+          <p className="text-sm font-medium">Anonymous grading</p>
+          <p className="text-xs text-ink-500">Hide student names while reviewing, to reduce bias.</p>
+        </div>
+        <input type="hidden" name="classroomId" value={classroomId} />
+        <input type="hidden" name="assessmentId" value={assessmentId} />
+        <input type="hidden" name="value" value={String(!(assessment as any).anonymous_grading)} />
+        <button className={`rounded-full px-3 py-1 text-xs font-semibold ${(assessment as any).anonymous_grading ? "bg-brand-500 text-white" : "bg-black/10 text-ink-600"}`}>
+          {(assessment as any).anonymous_grading ? "On" : "Off"}
+        </button>
+      </form>
 
       {published && (
         <p className="card border-green-300 bg-green-50 text-sm text-green-800 dark:border-green-500/30 dark:bg-green-500/10">
@@ -124,6 +146,7 @@ export default async function AssessmentBuilderPage(
         </section>
       )}
 
+      <GenerateWithAI classroomId={classroomId} assessmentId={assessmentId} />
       <AssessmentQuestionForm classroomId={classroomId} assessmentId={assessmentId} />
 
       <form action={deleteAssessment} className="pt-2">

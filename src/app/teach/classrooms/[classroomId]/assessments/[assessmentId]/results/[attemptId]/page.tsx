@@ -17,17 +17,21 @@ export default async function AttemptReviewPage(
   const { data: isTeacher } = await supabase.rpc("is_classroom_teacher", { p_classroom: classroomId });
   if (!isTeacher) notFound();
 
-  const { data: attempt } = await supabase
-    .from("assessment_attempts")
-    .select("id,assessment_id,status,score,max_score,published,student:profiles(display_name)")
-    .eq("id", attemptId)
-    .maybeSingle();
+  const [{ data: attempt }, { data: a2 }] = await Promise.all([
+    supabase
+      .from("assessment_attempts")
+      .select("id,assessment_id,status,score,max_score,published,student:profiles(display_name)")
+      .eq("id", attemptId)
+      .maybeSingle(),
+    supabase.from("assessments").select("anonymous_grading").eq("id", assessmentId).maybeSingle(),
+  ]);
   if (!attempt || attempt.assessment_id !== assessmentId) notFound();
+  const anon = !!(a2 as any)?.anonymous_grading;
 
   // Teacher may read answer keys (RLS); students cannot.
   const { data: questions } = await supabase
     .from("assessment_questions")
-    .select("id,position,kind,prompt,options,points,assessment_answer_keys(correct_index,correct_indices,correct_text,rubric)")
+    .select("id,position,kind,prompt,options,points,assessment_answer_keys(correct_index,correct_indices,correct_text,correct_number,number_tolerance,rubric)")
     .eq("assessment_id", assessmentId)
     .order("position");
   const { data: responses } = await supabase
@@ -43,15 +47,17 @@ export default async function AttemptReviewPage(
     const answerText = (() => {
       const v = r?.response;
       if (!v) return "(no answer)";
-      if (q.kind === "mcq") return opts[v.index] ?? `#${v.index}`;
+      if (q.kind === "mcq" || q.kind === "truefalse") return opts[v.index] ?? `#${v.index}`;
       if (q.kind === "multi") return (v.indices ?? []).map((i: number) => opts[i] ?? `#${i}`).join(", ");
+      if (q.kind === "numeric") return v.value != null ? String(v.value) : "(no answer)";
       return v.text ?? "(no answer)";
     })();
     const correctText = (() => {
       if (!key) return "";
-      if (q.kind === "mcq") return opts[key.correct_index] ?? "";
+      if (q.kind === "mcq" || q.kind === "truefalse") return opts[key.correct_index] ?? "";
       if (q.kind === "multi") return (key.correct_indices ?? []).map((i: number) => opts[i] ?? `#${i}`).join(", ");
       if (q.kind === "short") return key.correct_text ?? "";
+      if (q.kind === "numeric") return key.correct_number != null ? `${key.correct_number}${key.number_tolerance ? ` ± ${key.number_tolerance}` : ""}` : "";
       return key.rubric ?? "";
     })();
     return {
@@ -71,7 +77,7 @@ export default async function AttemptReviewPage(
     <div className="space-y-4">
       <Link href={`/teach/classrooms/${classroomId}/assessments/${assessmentId}/results`} className="text-sm text-brand-500">← Results</Link>
       <header>
-        <h1 className="text-2xl font-bold">{(attempt as any).student?.display_name ?? "Student"}</h1>
+        <h1 className="text-2xl font-bold">{anon ? "Anonymous student" : ((attempt as any).student?.display_name ?? "Student")}</h1>
         <p className="text-sm text-ink-500">
           {attempt.status === "submitted" ? "Needs review" : attempt.published ? "Published" : "Graded"} ·{" "}
           {attempt.score ?? 0}/{attempt.max_score ?? 0} pts

@@ -24,6 +24,7 @@ beforeAll(async()=>{
  create function public.is_classroom_member(uuid) returns boolean language sql as $$select auth.uid()='${student}'::uuid and $1='${classroom}'::uuid$$;`);
  await db.exec(sql('0030_mastery_engine.sql'));
  await db.exec(sql('0046_assessment_engine.sql'));
+ await db.exec(sql('0048_assessment_expansion.sql'));
  await db.exec(`create table grade_items(id uuid primary key default gen_random_uuid(),classroom_id uuid,assessment_id uuid references assessments(id) on delete cascade,name text,type text,max_points numeric,published boolean,unique(classroom_id,assessment_id));
  create table grade_entries(id uuid primary key default gen_random_uuid(),grade_item_id uuid references grade_items(id) on delete cascade,student_id uuid,points numeric,graded_by uuid,graded_at timestamptz default now(),unique(grade_item_id,student_id));
  grant all on all tables in schema public to authenticated,service_role;
@@ -88,6 +89,17 @@ describe('assessment transactions and access',()=>{
   await db.query('update mastery_events set score=0');await db.query('update skill_states set attempts=100');
   await owner(); expect((await db.query('select score from mastery_events')).rows).toEqual([{score:1}]);
   expect((await db.query('select attempts from skill_states')).rows).toEqual([{attempts:1}]);
+ });
+ it.each(['numeric','truefalse'])('commits %s grades with the expanded schema and preserves accommodations',async kind=>{
+  await owner();await db.exec(`delete from assessment_attempts; update assessment_questions set kind='${kind}'; update assessment_answer_keys set correct_number=3.14,number_tolerance=0.01,correct_index=0; insert into assessment_accommodations(assessment_id,student_id,extra_time_pct) values('${assessment}','${student}',50);`);
+  await user(student);attempt=(await db.query<{id:string}>(`select start_assessment_attempt('${assessment}') as id`)).rows[0].id;
+  const response=kind==='numeric'?{value:3.14}:{index:0};
+  await db.query('select save_assessment_response($1,$2,$3)',[attempt,question,JSON.stringify(response)]);
+  await owner();await db.exec('set role service_role');
+  await db.query('select submit_assessment_result($1,$2,$3)',[attempt,student,JSON.stringify([{question_id:question,response,points_awarded:2,is_correct:true}])]);
+  expect((await db.query('select score,published from assessment_attempts')).rows).toEqual([{score:'2',published:true}]);
+  expect((await db.query('select response from assessment_responses')).rows).toEqual([{response}]);
+  expect((await db.query('select extra_time_pct from assessment_accommodations')).rows).toEqual([{extra_time_pct:50}]);
  });
  it('permits parent deletion cascades without bypassing direct definition locks',async()=>{
   await submit();await owner();await db.exec(`delete from assessments where id='${assessment}'`);

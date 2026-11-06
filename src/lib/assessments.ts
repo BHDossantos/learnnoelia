@@ -2,7 +2,7 @@
 // grading runs on the server against answer keys the student never sees. Written
 // questions return null here and are handed to the AI grader + teacher review.
 
-export type QuestionKind = "mcq" | "multi" | "short" | "written";
+export type QuestionKind = "mcq" | "multi" | "short" | "written" | "truefalse" | "numeric";
 
 export type AssessmentQuestion = {
   id: string;
@@ -20,13 +20,16 @@ export type AnswerKey = {
   correct_index?: number | null;
   correct_indices?: number[] | null;
   correct_text?: string | null;
+  correct_number?: number | null;
+  number_tolerance?: number | null;
   rubric?: string | null;
 };
 
 export type ResponseValue =
   | { index: number }
   | { indices: number[] }
-  | { text: string };
+  | { text: string }
+  | { value: number };
 
 export type GradeResult = {
   points_awarded: number;
@@ -50,9 +53,19 @@ export function gradeResponse(
   }
 
   switch (question.kind) {
-    case "mcq": {
+    case "mcq":
+    case "truefalse": {
+      // True/False is a 2-option MCQ: index 0 = True, 1 = False.
       const chosen = (response as any).index;
       const ok = typeof chosen === "number" && chosen === key.correct_index;
+      return { points_awarded: ok ? max : 0, is_correct: ok };
+    }
+    case "numeric": {
+      const given = (response as any).value;
+      if (typeof given !== "number" || !Number.isFinite(given) || key.correct_number == null) {
+        return { points_awarded: 0, is_correct: false };
+      }
+      const ok = Math.abs(given - key.correct_number) <= (key.number_tolerance ?? 0);
       return { points_awarded: ok ? max : 0, is_correct: ok };
     }
     case "multi": {

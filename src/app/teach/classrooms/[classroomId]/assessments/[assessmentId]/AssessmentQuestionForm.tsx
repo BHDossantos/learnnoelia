@@ -2,7 +2,7 @@
 import { useState, useTransition } from "react";
 import { addQuestion } from "../actions";
 
-type Kind = "mcq" | "multi" | "short" | "written";
+type Kind = "mcq" | "multi" | "short" | "written" | "truefalse" | "numeric";
 
 export function AssessmentQuestionForm({
   classroomId, assessmentId,
@@ -18,6 +18,9 @@ export function AssessmentQuestionForm({
   const [correctMulti, setCorrectMulti] = useState<Set<number>>(new Set([0]));
   const [correctText, setCorrectText] = useState("");
   const [rubric, setRubric] = useState("");
+  const [tfCorrect, setTfCorrect] = useState(0); // 0 = True, 1 = False
+  const [correctNumber, setCorrectNumber] = useState("");
+  const [tolerance, setTolerance] = useState("0");
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -29,6 +32,7 @@ export function AssessmentQuestionForm({
     setError(null);
     if (!prompt.trim()) { setError("Enter a question prompt."); return; }
     if (needsOptions && options.length < 2) { setError("Add at least two options."); return; }
+    if (kind === "numeric" && correctNumber.trim() === "") { setError("Enter the correct number."); return; }
     start(async () => {
       try {
         await addQuestion({
@@ -38,9 +42,11 @@ export function AssessmentQuestionForm({
           prompt: prompt.trim(),
           points,
           options: needsOptions ? options : undefined,
-          correctIndex: kind === "mcq" ? correctIndex : undefined,
+          correctIndex: kind === "mcq" ? correctIndex : kind === "truefalse" ? tfCorrect : undefined,
           correctIndices: kind === "multi" ? [...correctMulti] : undefined,
           correctText: kind === "short" ? correctText.trim() : undefined,
+          correctNumber: kind === "numeric" ? Number(correctNumber) : undefined,
+          numberTolerance: kind === "numeric" ? Number(tolerance) || 0 : undefined,
           rubric: kind === "written" ? rubric.trim() : undefined,
         });
         // Reset for the next question.
@@ -63,7 +69,9 @@ export function AssessmentQuestionForm({
           <select value={kind} onChange={(e) => setKind(e.target.value as Kind)} className="rounded-lg border border-black/10 bg-white px-2 py-1.5 text-sm dark:bg-white/5">
             <option value="mcq">Multiple choice (one answer)</option>
             <option value="multi">Multiple choice (several answers)</option>
+            <option value="truefalse">True / False</option>
             <option value="short">Short answer (auto-graded)</option>
+            <option value="numeric">Numeric (auto-graded)</option>
             <option value="written">Written (AI + teacher review)</option>
           </select>
         </label>
@@ -108,11 +116,34 @@ export function AssessmentQuestionForm({
         </div>
       )}
 
+      {kind === "truefalse" && (
+        <div className="text-sm">
+          <span className="block text-xs text-ink-500">Correct answer</span>
+          <div className="mt-1 flex gap-4">
+            <label className="flex items-center gap-1.5"><input type="radio" checked={tfCorrect === 0} onChange={() => setTfCorrect(0)} /> True</label>
+            <label className="flex items-center gap-1.5"><input type="radio" checked={tfCorrect === 1} onChange={() => setTfCorrect(1)} /> False</label>
+          </div>
+        </div>
+      )}
+
       {kind === "short" && (
         <label className="block text-sm">
           <span className="block text-xs text-ink-500">Accepted answer(s) — separate alternatives with |</span>
           <input value={correctText} onChange={(e) => setCorrectText(e.target.value)} placeholder="hola|buenos dias" className="w-full rounded-lg border border-black/10 bg-white px-2 py-1.5 text-sm dark:bg-white/5" />
         </label>
+      )}
+
+      {kind === "numeric" && (
+        <div className="flex flex-wrap gap-2 text-sm">
+          <label>
+            <span className="block text-xs text-ink-500">Correct number</span>
+            <input type="number" step="any" value={correctNumber} onChange={(e) => setCorrectNumber(e.target.value)} className="w-32 rounded-lg border border-black/10 bg-white px-2 py-1.5 text-sm dark:bg-white/5" />
+          </label>
+          <label>
+            <span className="block text-xs text-ink-500">± Tolerance</span>
+            <input type="number" step="any" min={0} value={tolerance} onChange={(e) => setTolerance(e.target.value)} className="w-28 rounded-lg border border-black/10 bg-white px-2 py-1.5 text-sm dark:bg-white/5" />
+          </label>
+        </div>
       )}
 
       {kind === "written" && (

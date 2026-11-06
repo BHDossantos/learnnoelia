@@ -1,10 +1,10 @@
 import { beforeEach,describe,it,expect,vi } from 'vitest';
 const id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', qid='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
-const m=vi.hoisted(()=>({attempt:vi.fn(),questions:vi.fn(),rpc:vi.fn(),userRpc:vi.fn(),redirect:vi.fn(),revalidate:vi.fn()}));
+const m=vi.hoisted(()=>({attempt:vi.fn(),questions:vi.fn(),questionSelect:vi.fn(),rpc:vi.fn(),userRpc:vi.fn(),redirect:vi.fn(),revalidate:vi.fn()}));
 vi.mock('next/navigation',()=>({redirect:m.redirect}));
 vi.mock('next/cache',()=>({revalidatePath:m.revalidate}));
 vi.mock('@/lib/supabase/server',()=>({supabaseServer:async()=>({auth:{getUser:async()=>({data:{user:{id:'student'}}})},rpc:m.userRpc,from:()=>({select:()=>({eq:()=>({maybeSingle:m.attempt})})})})}));
-vi.mock('@/lib/supabase/admin',()=>({supabaseAdmin:()=>({rpc:m.rpc,from:()=>({select:()=>({eq:()=>({order:m.questions})})})})}));
+vi.mock('@/lib/supabase/admin',()=>({supabaseAdmin:()=>({rpc:m.rpc,from:()=>({select:(columns:string)=>{m.questionSelect(columns);return {eq:()=>({order:m.questions})};}})})}));
 import { submitAttempt,saveResponse } from './actions';
 function form(answers:unknown={[qid]:{text:'fresh answer'}}){const f=new FormData();f.set('attemptId',id);f.set('responses',JSON.stringify(answers));return f;}
 beforeEach(()=>{
@@ -19,6 +19,15 @@ describe('submission action persistence',()=>{
   expect(m.rpc).toHaveBeenCalledOnce();
   expect(m.rpc).toHaveBeenCalledWith('submit_assessment_result',{p_attempt:id,p_actor:'student',p_results:[{question_id:qid,response:{text:'fresh answer'},points_awarded:2,is_correct:true}]});
   expect(m.redirect).toHaveBeenCalled();
+ });
+ it.each([
+  ['numeric', {value:3.145}, {correct_number:3.14,number_tolerance:0.01}],
+  ['truefalse', {index:0}, {correct_index:0}],
+ ])('preserves %s answers and expanded keys through submission',async(kind,response,key)=>{
+  m.questions.mockResolvedValue({data:[{id:qid,kind,points:2,assessment_answer_keys:key}],error:null});
+  await submitAttempt(form({[qid]:response}));
+  expect(m.questionSelect).toHaveBeenCalledWith(expect.stringContaining('correct_number,number_tolerance'));
+  expect(m.rpc).toHaveBeenCalledWith('submit_assessment_result',expect.objectContaining({p_results:[{question_id:qid,response,points_awarded:2,is_correct:true}]}));
  });
  it('surfaces transaction failure without redirecting or reporting success',async()=>{
   m.rpc.mockResolvedValue({error:{message:'gradebook unavailable'}});

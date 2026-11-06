@@ -17,7 +17,7 @@ beforeAll(async()=>{
     create policy "session participants" on tutor_sessions for all using(auth.uid()=student_id or auth.uid()=tutor_id) with check(auth.uid()=student_id or auth.uid()=tutor_id);
     grant all on tutor_sessions,payments to authenticated,service_role;
     insert into tutor_sessions values('${sid}','${a}','${b}','live',null,'pi_test',1000,0);`);
-  await db.exec(readFileSync('supabase/migrations/0048_tutor_settlement_integrity.sql','utf8'));
+  await db.exec(readFileSync('supabase/migrations/0050_tutor_settlement_integrity.sql','utf8'));
 },30000);
 afterAll(async()=>{await db?.close();});
 describe('settlement SQL and RLS',()=>{

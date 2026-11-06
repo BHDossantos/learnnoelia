@@ -90,18 +90,22 @@ export default async function AttemptPage(props: { params: Promise<{ assessmentI
     );
   }
 
-  // In progress — load existing responses and hand off to the client.
-  const { data: responses } = await supabase
-    .from("assessment_responses")
-    .select("question_id,response")
-    .eq("attempt_id", attempt.id);
+  // In progress — load existing responses + any extra-time accommodation.
+  const [{ data: responses }, { data: accom }] = await Promise.all([
+    supabase.from("assessment_responses").select("question_id,response").eq("attempt_id", attempt.id),
+    supabase.from("assessment_accommodations").select("extra_time_pct").eq("assessment_id", assessmentId).eq("student_id", user.id).maybeSingle(),
+  ]);
+  const extraPct = (accom as any)?.extra_time_pct ?? 0;
+  const effectiveLimit = assessment.time_limit_minutes
+    ? Math.round(assessment.time_limit_minutes * (1 + extraPct / 100))
+    : null;
 
   return (
     <AttemptClient
       assessmentId={assessmentId}
       attemptId={attempt.id}
       title={assessment.title}
-      timeLimitMinutes={assessment.time_limit_minutes}
+      timeLimitMinutes={effectiveLimit}
       startedAt={attempt.started_at}
       questions={(questions ?? []).map((q: any) => ({
         id: q.id, kind: q.kind, prompt: q.prompt, options: q.options ?? null, points: q.points,
