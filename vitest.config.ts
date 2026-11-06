@@ -1,8 +1,11 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
-// Unit tests for pure logic libraries (no DB, no network). Component/route and
-// RLS coverage lives in the Playwright e2e suite.
+// Unit/action tests and isolated PGlite SQL/RLS regressions. These do not
+// substitute for browser acceptance or a full hosted Supabase migration run.
 export default defineConfig({
+  oxc: { jsx: { runtime: "automatic" } },
+  resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],

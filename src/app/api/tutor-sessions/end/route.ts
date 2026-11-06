@@ -1,77 +1,39 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { supabaseServer } from "@/lib/supabase/server";
-import { getStripe } from "@/lib/stripe";
 import { livekitRoomService } from "@/lib/livekit";
+import { tutorAdmin, reconcileTutorSettlement } from "@/lib/tutor-settlement";
 
 export const runtime = "nodejs";
-
-const Body = z.object({ sessionId: z.string().uuid() });
+const Body = z.object({ sessionId: z.string().guid() });
 
 export async function POST(req: Request) {
-  const parsed = Body.safeParse(await req.json());
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-  }
-
-  const supabase = await supabaseServer();
-  const { data: { user } } = await supabase.auth.getUser();
+  const parsed = Body.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "Invalid session" }, { status: 400 });
+  const userDb = await supabaseServer();
+  const { data: { user } } = await userDb.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-
-  const { data: s } = await supabase
-    .from("tutor_sessions")
-    .select("*")
-    .eq("id", parsed.data.sessionId)
-    .single();
-  if (!s) return NextResponse.json({ error: "not found" }, { status: 404 });
-  if (s.student_id !== user.id && s.tutor_id !== user.id) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const { data: s, error: readError } = await userDb.from("tutor_sessions").select("*").eq("id", parsed.data.sessionId).single();
+  if (readError || !s || (s.student_id !== user.id && s.tutor_id !== user.id)) {
+    return NextResponse.json({ error: "session not found" }, { status: 404 });
   }
-  if (s.status === "ended") {
-    return NextResponse.json({ minutes: s.minutes_billed, cents: s.cents_charged });
-  }
-
-  const { data: tutor } = await supabase
-    .from("tutors").select("rate_cents_per_minute").eq("id", s.tutor_id).single();
-  const rate = tutor?.rate_cents_per_minute ?? 0;
-
-  const elapsedMs = s.started_at ? Date.now() - new Date(s.started_at).getTime() : 0;
-  const minutes = Math.max(1, Math.ceil(elapsedMs / 60_000));
-  const cents = Math.min(minutes * rate, s.max_budget_cents ?? minutes * rate);
-
-  // Capture only the amount actually used; Stripe refunds the rest.
-  if (s.stripe_payment_intent && cents > 0) {
-    try {
-      await getStripe().paymentIntents.capture(s.stripe_payment_intent, { amount_to_capture: cents });
-    } catch (e: any) {
-      // If already captured or canceled, log and continue.
-      console.error("stripe capture failed", e?.message);
+  try {
+    const db = tutorAdmin();
+    const { data: frozen, error } = await db.rpc("begin_tutor_settlement", { p_session: s.id, p_actor: user.id });
+    if (error || !frozen) throw new Error("Could not end session");
+    // Frozen end time is durable before provider work. Payment uncertainty
+    // cannot keep the billing clock running or be reported as captured.
+    let roomClosed = !s.livekit_room;
+    if (s.livekit_room) {
+      try { await livekitRoomService().deleteRoom(s.livekit_room); roomClosed = true; } catch { /* retryable */ }
     }
-  } else if (s.stripe_payment_intent) {
-    try { await getStripe().paymentIntents.cancel(s.stripe_payment_intent); } catch {}
+    try {
+      const result = await reconcileTutorSettlement(db, { ...s, stripe_payment_intent: frozen.stripe_payment_intent });
+      return NextResponse.json({ ended: true, paymentStatus: result.state, cents: ["captured", "cancelled"].includes(result.state) ? result.amount_cents : null, roomClosed });
+    } catch {
+      return NextResponse.json({ ended: true, paymentStatus: "pending", cents: null, roomClosed }, { status: 202 });
+    }
+  } catch {
+    return NextResponse.json({ error: "Could not save the end request. Please retry.", ended: false }, { status: 503 });
   }
-
-  if (s.livekit_room) {
-    try { await livekitRoomService().deleteRoom(s.livekit_room); } catch {}
-  }
-
-  await supabase
-    .from("tutor_sessions")
-    .update({
-      status: "ended",
-      ended_at: new Date().toISOString(),
-      minutes_billed: minutes,
-      cents_charged: cents,
-    })
-    .eq("id", s.id);
-
-  await supabase.from("payments").insert({
-    user_id: s.student_id,
-    session_id: s.id,
-    stripe_payment_intent: s.stripe_payment_intent,
-    amount_cents: cents,
-    status: "captured",
-  });
-
-  return NextResponse.json({ minutes, cents });
 }

@@ -25,6 +25,8 @@ export function SessionRoom({
   const [cents, setCents] = useState(0);
   const [status, setStatus] = useState(initialStatus);
   const [ending, setEnding] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [endError, setEndError] = useState<string | null>(null);
   const intervalRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -39,8 +41,8 @@ export function SessionRoom({
       if (!res.ok) return;
       const d = await res.json();
       if (stopped) return;
+      if (d.ended) { setStatus("ended"); setPaymentStatus("pending"); return; }
       setMinutes(d.minutes ?? 0);
-      setCents(d.cents ?? 0);
       if (d.overBudget) end();
     }
     tick();
@@ -53,6 +55,7 @@ export function SessionRoom({
 
   async function end() {
     setEnding(true);
+    setEndError(null);
     try {
       const res = await fetch("/api/tutor-sessions/end", {
         method: "POST",
@@ -60,9 +63,14 @@ export function SessionRoom({
         body: JSON.stringify({ sessionId }),
       });
       const d = await res.json();
+      if (!res.ok || !d.ended) throw new Error(d.error ?? "Could not confirm the end request.");
       setMinutes(d.minutes ?? minutes);
-      setCents(d.cents ?? cents);
+      if (typeof d.cents === "number") setCents(d.cents);
+      setPaymentStatus(d.paymentStatus);
       setStatus("ended");
+      if (!d.roomClosed) setEndError("The call room could not be closed. Disconnect and retry the end request.");
+    } catch (e) {
+      setEndError(e instanceof Error ? e.message : "Could not confirm the end request. Please retry.");
     } finally {
       setEnding(false);
     }
@@ -83,14 +91,14 @@ export function SessionRoom({
 
       <div className="card space-y-2">
         <div className="flex items-center justify-between text-sm">
-          <span>{minutes} min · ${used.toFixed(2)}</span>
+          <span>{minutes} min{paymentStatus === "captured" ? ` · confirmed payment $${used.toFixed(2)}` : " · payment not confirmed"}</span>
           <span className="text-ink-500">cap ${cap.toFixed(2)}</span>
         </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/5">
           <div className="h-full bg-brand-500" style={{ width: `${pct}%` }} />
         </div>
         <p className="text-xs text-ink-500">
-          ${(ratePerMinute / 100).toFixed(2)}/min · billed by the minute. Ends automatically at the cap.
+          Billing is under review. Ending or disconnecting the call does not confirm a payment.
         </p>
       </div>
 
@@ -102,7 +110,7 @@ export function SessionRoom({
             connect={true}
             audio={true}
             video={true}
-            onDisconnected={() => setStatus("ended")}
+            onDisconnected={() => { setStatus("disconnected"); setPaymentStatus("pending"); }}
             data-lk-theme="default"
             style={{ height: "100%" }}
           >
@@ -118,9 +126,13 @@ export function SessionRoom({
         </div>
       )}
 
-      {status === "live" ? (
+      {endError && <p role="alert" className="text-sm text-red-600">{endError}</p>}
+      {paymentStatus && paymentStatus !== "captured" && paymentStatus !== "cancelled" && (
+        <p role="status" className="text-sm">The session has ended. Payment requires reconciliation; no charge is confirmed. Contact support if this persists.</p>
+      )}
+      {(status === "live" || status === "disconnected" || endError || paymentStatus === "pending" || paymentStatus === "review_required") ? (
         <button onClick={end} disabled={ending} className="btn-primary w-full">
-          {ending ? "Ending…" : "End session"}
+          {ending ? "Checking…" : status === "live" ? "End session" : "Retry end/payment check"}
         </button>
       ) : (
         <button onClick={() => router.push("/tutors")} className="btn-primary w-full">
