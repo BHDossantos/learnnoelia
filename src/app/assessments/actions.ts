@@ -22,7 +22,19 @@ export async function startAttempt(formData: FormData) {
   redirect(`/assessments/${assessmentId}`);
 }
 
+// Best-effort monitoring event (tab focus loss, start, submit). RLS ensures the
+// student can only log events for their own attempt.
+export async function logMonitorEvent(attemptId: string, eventType: string) {
+  if (!["start", "focus_lost", "focus_gained", "submit"].includes(eventType)) return;
+  try {
+    const { supabase } = await requireStudent();
+    await supabase.from("assessment_monitor_events").insert({ attempt_id: attemptId, event_type: eventType });
+  } catch { /* monitoring must never break the exam */ }
+}
+
+
 const SaveInput = z.object({ attemptId: z.string().guid(), questionId: z.string().guid(), response: AssessmentResponse });
+
 export async function saveResponse(input: z.infer<typeof SaveInput>) {
   const data = SaveInput.parse(input);
   const { supabase } = await requireStudent();

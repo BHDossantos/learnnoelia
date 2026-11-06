@@ -25,11 +25,12 @@ beforeAll(async()=>{
  await db.exec(sql('0030_mastery_engine.sql'));
  await db.exec(sql('0046_assessment_engine.sql'));
  await db.exec(sql('0048_assessment_expansion.sql'));
+ await db.exec(sql('0049_assessment_monitoring.sql'));
  await db.exec(`create table grade_items(id uuid primary key default gen_random_uuid(),classroom_id uuid,assessment_id uuid references assessments(id) on delete cascade,name text,type text,max_points numeric,published boolean,unique(classroom_id,assessment_id));
  create table grade_entries(id uuid primary key default gen_random_uuid(),grade_item_id uuid references grade_items(id) on delete cascade,student_id uuid,points numeric,graded_by uuid,graded_at timestamptz default now(),unique(grade_item_id,student_id));
  grant all on all tables in schema public to authenticated,service_role;
  grant usage on all sequences in schema public to authenticated,service_role;`);
- await db.exec(sql('0049_assessment_integrity.sql'));
+ await db.exec(sql('0051_assessment_integrity.sql'));
 },30000);
 beforeEach(async()=>{
  await owner(); await db.exec(`truncate assessments,mastery_events,skill_states,misconceptions cascade;
@@ -100,6 +101,14 @@ describe('assessment transactions and access',()=>{
   expect((await db.query('select score,published from assessment_attempts')).rows).toEqual([{score:'2',published:true}]);
   expect((await db.query('select response from assessment_responses')).rows).toEqual([{response}]);
   expect((await db.query('select extra_time_pct from assessment_accommodations')).rows).toEqual([{extra_time_pct:50}]);
+ });
+ it('preserves monitor event ownership and teacher visibility after integrity grants',async()=>{
+  await db.query(`insert into assessment_monitor_events(attempt_id,event_type) values('${attempt}','focus_lost')`);
+  await user(outsider);
+  await expect(db.query(`insert into assessment_monitor_events(attempt_id,event_type) values('${attempt}','focus_lost')`)).rejects.toThrow();
+  expect((await db.query('select * from assessment_monitor_events')).rows).toHaveLength(0);
+  await user(teacher);
+  expect((await db.query('select event_type from assessment_monitor_events')).rows).toEqual([{event_type:'focus_lost'}]);
  });
  it('permits parent deletion cascades without bypassing direct definition locks',async()=>{
   await submit();await owner();await db.exec(`delete from assessments where id='${assessment}'`);

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { saveResponse, submitAttempt } from "../actions";
+import { saveResponse, submitAttempt, logMonitorEvent } from "../actions";
 
 type Q = { id: string; kind: "mcq" | "multi" | "short" | "written" | "truefalse" | "numeric"; prompt: string; options: string[] | null; points: number };
 type ResponseMap = Record<string, any>;
@@ -58,6 +58,14 @@ export function AttemptClient({
     return () => clearInterval(t);
   }, [endAt]);
 
+  // Lightweight proctoring: log start + tab focus changes (teacher sees flags).
+  useEffect(() => {
+    logMonitorEvent(attemptId, "start");
+    const onVis = () => logMonitorEvent(attemptId, document.hidden ? "focus_lost" : "focus_gained");
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [attemptId]);
+
   const mins = remaining != null ? Math.max(0, Math.floor(remaining / 60000)) : null;
   const secs = remaining != null ? Math.max(0, Math.floor((remaining % 60000) / 1000)) : null;
   const answeredCount = questions.filter((q) => responses[q.id] != null && responses[q.id] !== "").length;
@@ -75,6 +83,7 @@ export function AttemptClient({
           </span>
         )}
       </header>
+      <p className="text-xs text-ink-400">🔒 This exam is monitored — leaving this tab is recorded for your teacher.</p>
 
       <fieldset disabled={submitting} className="space-y-4">
       {questions.map((q, i) => (

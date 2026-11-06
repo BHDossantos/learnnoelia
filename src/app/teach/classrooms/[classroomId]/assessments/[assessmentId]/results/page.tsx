@@ -61,9 +61,14 @@ export default async function AssessmentResultsPage(
             {rows.length} attempts{needsReview > 0 ? ` · ${needsReview} need review` : ""}{anon ? " · anonymous" : ""}
           </p>
         </div>
-        <Link href={`/teach/classrooms/${classroomId}/assessments/${assessmentId}/analytics`} className="btn-ghost text-sm">
-          📊 Analytics
-        </Link>
+        <div className="flex shrink-0 gap-2">
+          <Link href={`/teach/classrooms/${classroomId}/assessments/${assessmentId}/monitor`} className="btn-ghost text-sm">
+            🔴 Live monitor
+          </Link>
+          <Link href={`/teach/classrooms/${classroomId}/assessments/${assessmentId}/analytics`} className="btn-ghost text-sm">
+            📊 Analytics
+          </Link>
+        </div>
       </header>
 
       {rows.length === 0 ? (
