@@ -93,7 +93,7 @@ export async function followDemoStudent(): Promise<void> {
 }
 
 export async function unlinkStudent(input: { studentId: string }) {
-  const studentId = z.string().uuid().parse(input.studentId);
+  const studentId = z.string().guid().parse(input.studentId);
   const supabase = await supabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/sign-in");

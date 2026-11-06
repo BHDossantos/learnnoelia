@@ -6,7 +6,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 export const runtime = "nodejs";
 
 const Body = z.object({
-  submissionId: z.string().uuid(),
+  submissionId: z.string().guid(),
 });
 
 // Mints a short-lived signed URL for a submission attachment.

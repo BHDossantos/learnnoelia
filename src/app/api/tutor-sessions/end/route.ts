@@ -6,7 +6,7 @@ import { livekitRoomService } from "@/lib/livekit";
 
 export const runtime = "nodejs";
 
-const Body = z.object({ sessionId: z.string().uuid() });
+const Body = z.object({ sessionId: z.string().guid() });
 
 export async function POST(req: Request) {
   const parsed = Body.safeParse(await req.json());

@@ -25,7 +25,7 @@ export async function ensureGradebookSettings(classroomId: string) {
 }
 
 const SettingsInput = z.object({
-  classroomId: z.string().uuid(),
+  classroomId: z.string().guid(),
   mode: z.enum(["points", "weighted"]).optional(),
   showClassAverage: z.boolean().optional(),
 });
@@ -243,9 +243,9 @@ export async function syncAssignmentItem(formData: FormData) {
 
 // Upsert a single grade. points="" clears the grade (back to ungraded).
 const EntryInput = z.object({
-  classroomId: z.string().uuid(),
-  gradeItemId: z.string().uuid(),
-  studentId: z.string().uuid(),
+  classroomId: z.string().guid(),
+  gradeItemId: z.string().guid(),
+  studentId: z.string().guid(),
   points: z.number().nullable(),
   feedback: z.string().max(4000).optional(),
 });

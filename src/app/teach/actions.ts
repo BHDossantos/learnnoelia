@@ -58,7 +58,7 @@ const VocabItemInput = z.object({
 });
 
 const VocabLesson = z.object({
-  courseId: z.string().uuid(),
+  courseId: z.string().guid(),
   kind: z.literal("vocab"),
   title: z.string().min(2).max(160),
   items: z.array(VocabItemInput).min(1).max(60),
@@ -67,7 +67,7 @@ const VocabLesson = z.object({
 });
 
 const RoleplayLesson = z.object({
-  courseId: z.string().uuid(),
+  courseId: z.string().guid(),
   kind: z.literal("roleplay"),
   title: z.string().min(2).max(160),
   scenario: z.string().min(5).max(1200),
@@ -78,7 +78,7 @@ const RoleplayLesson = z.object({
 });
 
 const ContentLesson = z.object({
-  courseId: z.string().uuid(),
+  courseId: z.string().guid(),
   kind: z.enum(["reading", "grammar", "listening", "writing"]),
   title: z.string().min(2).max(160),
   content: z.string().min(1).max(12000),
@@ -95,7 +95,7 @@ const QuizQuestion = z.object({
 });
 
 const QuizLesson = z.object({
-  courseId: z.string().uuid(),
+  courseId: z.string().guid(),
   kind: z.literal("quiz"),
   title: z.string().min(2).max(160),
   questions: z.array(QuizQuestion).min(1).max(30),
@@ -170,7 +170,7 @@ export async function createLesson(input: z.input<typeof LessonInput>) {
 }
 
 const AssignmentInput = z.object({
-  courseId: z.string().uuid(),
+  courseId: z.string().guid(),
   title: z.string().min(2).max(160),
   instructions: z.string().min(5).max(8000),
   rubricRaw: z.string().max(4000).optional(),
@@ -236,7 +236,7 @@ export async function createAssignment(formData: FormData) {
 }
 
 const ReviewInput = z.object({
-  submissionId: z.string().uuid(),
+  submissionId: z.string().guid(),
   finalScore: z.coerce.number().min(0).max(10000),
   comments: z.string().max(8000).optional(),
   approvedAi: z.coerce.boolean(),
@@ -268,7 +268,7 @@ export async function submitTeacherReview(formData: FormData) {
 }
 
 const LessonUpdate = z.object({
-  lessonId: z.string().uuid(),
+  lessonId: z.string().guid(),
   title: z.string().min(2).max(160),
   bodyJson: z.string().min(2).max(40000),
   notes: z.string().max(4000).optional(),
@@ -324,7 +324,7 @@ export async function updateLesson(formData: FormData) {
 }
 
 export async function deleteLesson(formData: FormData) {
-  const lessonId = z.string().uuid().parse(formData.get("lessonId"));
+  const lessonId = z.string().guid().parse(formData.get("lessonId"));
   const supabase = await supabaseServer();
   const lesson = await assertOwnLesson(supabase, lessonId);
 
@@ -337,7 +337,7 @@ export async function deleteLesson(formData: FormData) {
 }
 
 export async function moveLesson(formData: FormData) {
-  const lessonId = z.string().uuid().parse(formData.get("lessonId"));
+  const lessonId = z.string().guid().parse(formData.get("lessonId"));
   const direction = z.enum(["up", "down"]).parse(formData.get("direction"));
   const supabase = await supabaseServer();
   const lesson = await assertOwnLesson(supabase, lessonId);

@@ -13,8 +13,8 @@ const Body = z.object({
     .enum(["explain", "socratic", "practice", "review", "example", "different", "challenge", "exam"])
     .default("explain"),
   // Optional lesson context so the tutor can reference the exact screen.
-  courseId: z.string().uuid().optional(),
-  lessonId: z.string().uuid().optional(),
+  courseId: z.string().guid().optional(),
+  lessonId: z.string().guid().optional(),
 });
 
 // Pedagogy per tutor mode.
