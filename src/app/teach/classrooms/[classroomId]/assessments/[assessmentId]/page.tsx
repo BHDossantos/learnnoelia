@@ -4,6 +4,7 @@ import { requireOnboardedUser } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase/server";
 import { AssessmentQuestionForm } from "./AssessmentQuestionForm";
 import { GenerateWithAI } from "./GenerateWithAI";
+import { ImportQuestions } from "./ImportQuestions";
 import { deleteQuestion, setStatus, deleteAssessment, duplicateAssessment, setAnonymous } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -147,6 +148,7 @@ export default async function AssessmentBuilderPage(
       )}
 
       <GenerateWithAI classroomId={classroomId} assessmentId={assessmentId} />
+      <ImportQuestions classroomId={classroomId} assessmentId={assessmentId} />
       <AssessmentQuestionForm classroomId={classroomId} assessmentId={assessmentId} />
 
       <form action={deleteAssessment} className="pt-2">
