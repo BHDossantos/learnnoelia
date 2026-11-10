@@ -69,3 +69,17 @@ describe("Assessment Builder reconciliation", () => {
     expect(m.revalidate).not.toHaveBeenCalled();
   });
 });
+
+// Upstream question types must survive the readiness branch reconciliation.
+describe("expanded question kinds", () => {
+  it("preserves True/False options and answer key", async () => {
+    await addQuestion({ ...input(), kind: "truefalse", correctIndex: 1 });
+    expect(m.insertQuestion).toHaveBeenCalledWith(expect.objectContaining({ kind: "truefalse", options: ["True", "False"] }));
+    expect(m.insertKey).toHaveBeenCalledWith(expect.objectContaining({ correct_index: 1 }));
+  });
+  it("preserves numeric keys and tolerances", async () => {
+    await addQuestion({ ...input(), kind: "numeric", correctNumber: 42, numberTolerance: 0.5 });
+    expect(m.insertQuestion).toHaveBeenCalledWith(expect.objectContaining({ kind: "numeric", options: null }));
+    expect(m.insertKey).toHaveBeenCalledWith(expect.objectContaining({ correct_number: 42, number_tolerance: 0.5 }));
+  });
+});

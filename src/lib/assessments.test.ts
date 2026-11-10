@@ -26,6 +26,20 @@ describe("gradeResponse", () => {
     expect(gradeResponse(q, key, { text: "adios" })?.is_correct).toBe(false);
   });
 
+  it("grades true/false (index 0 = True)", () => {
+    const q = { kind: "truefalse" as const, points: 1 };
+    expect(gradeResponse(q, { question_id: "1", correct_index: 0 }, { index: 0 })?.is_correct).toBe(true);
+    expect(gradeResponse(q, { question_id: "1", correct_index: 0 }, { index: 1 })?.is_correct).toBe(false);
+  });
+
+  it("grades numeric within tolerance", () => {
+    const q = { kind: "numeric" as const, points: 2 };
+    const key = { question_id: "1", correct_number: 3.14, number_tolerance: 0.01 };
+    expect(gradeResponse(q, key, { value: 3.15 })).toEqual({ points_awarded: 2, is_correct: true });
+    expect(gradeResponse(q, key, { value: 3.2 })).toEqual({ points_awarded: 0, is_correct: false });
+    expect(gradeResponse(q, key, { value: 3.14 })?.is_correct).toBe(true);
+  });
+
   it("returns null for written questions (needs AI + review)", () => {
     expect(gradeResponse({ kind: "written", points: 10 }, { question_id: "1", rubric: "..." }, { text: "an essay" })).toBeNull();
   });

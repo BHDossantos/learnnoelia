@@ -113,6 +113,8 @@ export function SideNav({
           badge={it.href === "/inbox" ? unreadCount : undefined}
         />
       ))}
+      {/* Exams/assessments — literal label (no per-locale key needed). */}
+      <Item href="/assessments" icon="🧪" label="Exams" active={isActive("/assessments")} />
 
       <SectionLabel>{labels.shortcuts}</SectionLabel>
       {SHORTCUTS.map((it) => (
