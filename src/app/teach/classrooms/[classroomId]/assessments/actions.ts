@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { feedAssessmentMastery } from "@/lib/mastery";
 
 // All assessment mutations. RLS enforces teacher-only writes; we also check
 // membership up front for a clean error and to resolve the revalidate path.

@@ -122,3 +122,21 @@ Local validation: 47 unit tests, four storage HTTP tests and TypeScript passed.
 The earlier 37-browser-test result belongs to 894d294; hosted browser/build/native
 checks must be assessed on the new merge commit, not inferred from that result.
 No deployment, PR merge, signing or release-readiness claim is made here.
+
+## November 10 reconciliation
+
+Reconciled this review branch with default commit
+`6946591` without dropping the new assessment import, monitoring, accommodations,
+True/False and Numeric question support. Resolved the question-schema conflict
+by preserving those kinds and the existing Zod 4 PostgreSQL GUID compatibility.
+Applied that compatibility to the newly added assessment autosave/teacher
+schemas as well. Regression coverage preserves True/False/numeric answer keys,
+accepts existing PostgreSQL IDs on autosave and rejects malformed IDs before DB
+access. This does not merge the separate assessment-integrity PR #64; its schema
+and grading/tutoring changes still require their own coordinated review.
+
+Validation: locked install, TypeScript, 53 Vitest tests and 4 storage tests pass.
+Local E2E and native platform validation remain separate requirements: Docker,
+Android SDK and Xcode are not present in this executor. No hosted database,
+signed build, store submission, live deletion or production configuration was
+changed. This reconciliation is not evidence of a deployed release.
