@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { supabaseServer } from "@/lib/supabase/server";
 import { LANGUAGE_CODES } from "@/lib/languages";
+import { LessonInput, validateLessonBody } from "@/lib/lesson-schema";
 
 const CourseInput = z.object({
   title: z.string().min(2).max(120),
@@ -50,60 +51,6 @@ export async function createCourse(formData: FormData) {
   redirect(`/teach/courses/${course.id}`);
 }
 
-const VocabItemInput = z.object({
-  term: z.string().min(1).max(160),
-  translation: z.string().min(1).max(200),
-  ipa: z.string().max(80).optional(),
-  example: z.string().max(400).optional(),
-});
-
-const VocabLesson = z.object({
-  courseId: z.string().guid(),
-  kind: z.literal("vocab"),
-  title: z.string().min(2).max(160),
-  items: z.array(VocabItemInput).min(1).max(60),
-  notes: z.string().max(4000).optional(),
-  estimatedMinutes: z.coerce.number().int().min(1).max(180).default(8),
-});
-
-const RoleplayLesson = z.object({
-  courseId: z.string().guid(),
-  kind: z.literal("roleplay"),
-  title: z.string().min(2).max(160),
-  scenario: z.string().min(5).max(1200),
-  persona: z.string().max(400).optional(),
-  goal: z.string().max(400).optional(),
-  notes: z.string().max(4000).optional(),
-  estimatedMinutes: z.coerce.number().int().min(1).max(180).default(10),
-});
-
-const ContentLesson = z.object({
-  courseId: z.string().guid(),
-  kind: z.enum(["reading", "grammar", "listening", "writing"]),
-  title: z.string().min(2).max(160),
-  content: z.string().min(1).max(12000),
-  keyTermsRaw: z.string().max(4000).optional(),
-  notes: z.string().max(4000).optional(),
-  estimatedMinutes: z.coerce.number().int().min(1).max(180).default(10),
-});
-
-const QuizQuestion = z.object({
-  prompt: z.string().min(3).max(400),
-  options: z.array(z.string().min(1).max(200)).min(2).max(6),
-  answer: z.number().int().min(0),
-  explanation: z.string().max(400).optional(),
-});
-
-const QuizLesson = z.object({
-  courseId: z.string().guid(),
-  kind: z.literal("quiz"),
-  title: z.string().min(2).max(160),
-  questions: z.array(QuizQuestion).min(1).max(30),
-  notes: z.string().max(4000).optional(),
-  estimatedMinutes: z.coerce.number().int().min(1).max(180).default(5),
-});
-
-const LessonInput = z.discriminatedUnion("kind", [VocabLesson, RoleplayLesson, ContentLesson, QuizLesson]);
 
 function parseKeyTerms(raw?: string) {
   if (!raw) return [];
@@ -153,6 +100,7 @@ export async function createLesson(input: z.input<typeof LessonInput>) {
     body = { content: data.content, key_terms: parseKeyTerms(data.keyTermsRaw) };
   }
 
+  body = validateLessonBody(data.kind, body);
   const { error } = await supabase.from("lessons").insert({
     course_id: data.courseId,
     position,
@@ -280,13 +228,13 @@ async function assertOwnLesson(supabase: Awaited<ReturnType<typeof supabaseServe
   if (!user) redirect("/sign-in");
   const { data: lesson } = await supabase
     .from("lessons")
-    .select("id,course_id,position,course:courses(teacher_id)")
+    .select("id,course_id,position,kind,course:courses(teacher_id)")
     .eq("id", lessonId)
     .single();
   if (!lesson || (lesson as any).course?.teacher_id !== user.id) {
     throw new Error("not your lesson");
   }
-  return lesson as unknown as { id: string; course_id: string; position: number };
+  return lesson as unknown as { id: string; course_id: string; position: number; kind: string };
 }
 
 export async function updateLesson(formData: FormData) {
@@ -306,6 +254,7 @@ export async function updateLesson(formData: FormData) {
 
   const supabase = await supabaseServer();
   const lesson = await assertOwnLesson(supabase, data.lessonId);
+  body = validateLessonBody(lesson.kind, body);
 
   const { error } = await supabase
     .from("lessons")
