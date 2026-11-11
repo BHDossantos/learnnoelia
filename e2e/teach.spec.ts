@@ -10,7 +10,7 @@ test.describe("teacher composer", () => {
     const lessonTitle = "Test greetings";
 
     await page.goto("/teach");
-    await page.getByRole("link", { name: /\+ course/i }).first().click();
+    await page.getByRole("link", { name: /\+ build a course/i }).first().click();
 
     // New course form
     await expect(page.getByRole("heading", { name: "New course" })).toBeVisible();
@@ -58,7 +58,7 @@ test.describe("teacher composer", () => {
     // switches cleanly so a teacher can author all the kinds the player
     // actually renders.
     await page.goto("/teach");
-    await page.getByRole("link", { name: /\+ course/i }).first().click();
+    await page.getByRole("link", { name: /\+ build a course/i }).first().click();
     await page.locator('input[name="title"]').fill(`UI swap ${Date.now()}`);
     await page.locator('select[name="language"]').selectOption("es");
     await page.getByRole("button", { name: "Create course" }).click();

@@ -27,6 +27,7 @@ export function SignOutButton() {
 }
 
 export function DeleteAccountButton() {
+  const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +54,12 @@ export function DeleteAccountButton() {
           disabled={pending}
           onClick={() =>
             start(async () => {
-              try { await deleteAccount(); } catch (e: any) { setError(e?.message ?? "Failed"); }
+              try {
+                setError(null);
+                await deleteAccount();
+                router.replace("/");
+                router.refresh();
+              } catch (e: any) { setError(e?.message ?? "Failed"); }
             })
           }
           className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700"

@@ -12,8 +12,8 @@ async function requireUserId() {
 }
 
 const CreateMeetingInput = z.object({
-  orgId: z.string().uuid(),
-  classroomId: z.string().uuid(),
+  orgId: z.string().guid(),
+  classroomId: z.string().guid(),
   scheduledAt: z.string().min(1), // datetime-local string
   durationMinutes: z.coerce.number().int().min(5).max(480).default(60),
   title: z.string().max(160).optional(),
@@ -36,9 +36,9 @@ export async function createMeeting(input: z.input<typeof CreateMeetingInput>) {
 }
 
 const DeleteMeetingInput = z.object({
-  orgId: z.string().uuid(),
-  classroomId: z.string().uuid(),
-  meetingId: z.string().uuid(),
+  orgId: z.string().guid(),
+  classroomId: z.string().guid(),
+  meetingId: z.string().guid(),
 });
 
 export async function deleteMeeting(input: z.input<typeof DeleteMeetingInput>) {
@@ -50,13 +50,13 @@ export async function deleteMeeting(input: z.input<typeof DeleteMeetingInput>) {
 }
 
 const MarkAttendanceInput = z.object({
-  orgId: z.string().uuid(),
-  classroomId: z.string().uuid(),
-  meetingId: z.string().uuid(),
+  orgId: z.string().guid(),
+  classroomId: z.string().guid(),
+  meetingId: z.string().guid(),
   items: z
     .array(
       z.object({
-        userId: z.string().uuid(),
+        userId: z.string().guid(),
         status: z.enum(["present", "absent", "late", "excused"]),
         note: z.string().max(280).optional(),
       }),

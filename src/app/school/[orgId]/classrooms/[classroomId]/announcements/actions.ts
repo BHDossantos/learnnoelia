@@ -12,8 +12,8 @@ async function requireUserId() {
 }
 
 const PostInput = z.object({
-  orgId: z.string().uuid(),
-  classroomId: z.string().uuid(),
+  orgId: z.string().guid(),
+  classroomId: z.string().guid(),
   body: z.string().min(1).max(4000),
   pinned: z.boolean().default(false),
 });
@@ -32,9 +32,9 @@ export async function postAnnouncement(input: z.input<typeof PostInput>) {
 }
 
 const DeleteInput = z.object({
-  orgId: z.string().uuid(),
-  classroomId: z.string().uuid(),
-  announcementId: z.string().uuid(),
+  orgId: z.string().guid(),
+  classroomId: z.string().guid(),
+  announcementId: z.string().guid(),
 });
 
 export async function deleteAnnouncement(input: z.input<typeof DeleteInput>) {

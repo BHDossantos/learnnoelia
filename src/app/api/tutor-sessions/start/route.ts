@@ -7,7 +7,7 @@ import { livekitRoomService, mintLivekitToken } from "@/lib/livekit";
 export const runtime = "nodejs";
 
 const Body = z.object({
-  tutorId: z.string().uuid(),
+  tutorId: z.string().guid(),
   maxMinutes: z.number().int().min(5).max(120).default(30),
   shareLearnerSnapshot: z.boolean().default(true),
 });

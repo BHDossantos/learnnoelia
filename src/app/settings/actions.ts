@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
+import { removeAccountUploads } from "@/lib/account-deletion";
+import { getStripe } from "@/lib/stripe";
 import { supabaseServer } from "@/lib/supabase/server";
 
 const ProfileInput = z.object({
@@ -48,8 +50,8 @@ export async function updateProfile(formData: FormData) {
 }
 
 // Permanently delete the account: removes the auth user (profiles row and
-// everything hanging off it goes with ON DELETE CASCADE). Requires the
-// service-role key; without it we sign the user out and surface an error.
+// dependent personal rows cascade). Storage must be removed first.
+// Failed deletion leaves the account available so the owner can retry.
 export async function deleteAccount() {
   const supabase = await supabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
@@ -65,9 +67,24 @@ export async function deleteAccount() {
     serviceKey,
     { auth: { persistSession: false } },
   );
+  const { data: subscription, error: subscriptionError } = await admin
+    .from("subscriptions").select("stripe_subscription_id").eq("user_id", user.id).maybeSingle();
+  if (subscriptionError) throw new Error("Could not check your subscription. Please retry account deletion.");
+  if (subscription?.stripe_subscription_id) {
+    try {
+      await getStripe().subscriptions.cancel(subscription.stripe_subscription_id);
+    } catch (error) {
+      // Retrying deletion after a successful cancellation is safe.
+      if ((error as { code?: string }).code !== "resource_missing")
+        throw new Error("Could not cancel your subscription. Your account has not been deleted; please retry.");
+    }
+  }
+  await removeAccountUploads(admin, user.id);
   const { error } = await admin.auth.admin.deleteUser(user.id);
-  if (error) throw new Error(error.message);
+  if (error) throw new Error("Could not delete your account. Please retry or contact support.");
 
   await supabase.auth.signOut();
-  redirect("/");
+  // Return normally: the client must not catch Next's redirect exception as an error.
+  return { deleted: true };
+
 }

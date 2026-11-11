@@ -5,7 +5,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-const Body = z.object({ submissionId: z.string().uuid() });
+const Body = z.object({ submissionId: z.string().guid() });
 
 export async function POST(req: Request) {
   const parsed = Body.safeParse(await req.json());
@@ -89,10 +89,11 @@ Return STRICT JSON only:
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await supabase
+  const { error: statusErr } = await supabase
     .from("submissions")
     .update({ status: "graded" })
     .eq("id", submission.id);
+  if (statusErr) return NextResponse.json({ error: statusErr.message }, { status: 500 });
 
   return NextResponse.json({ grade });
 }

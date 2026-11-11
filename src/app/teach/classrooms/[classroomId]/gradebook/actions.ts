@@ -25,7 +25,7 @@ export async function ensureGradebookSettings(classroomId: string) {
 }
 
 const SettingsInput = z.object({
-  classroomId: z.string().uuid(),
+  classroomId: z.string().guid(),
   mode: z.enum(["points", "weighted"]).optional(),
   showClassAverage: z.boolean().optional(),
 });
@@ -49,7 +49,8 @@ export async function addCategory(formData: FormData) {
     .from("grade_categories")
     .select("id", { count: "exact", head: true })
     .eq("classroom_id", classroomId);
-  await supabase.from("grade_categories").insert({ classroom_id: classroomId, name, weight, position: (count ?? 0) + 1 });
+  const { error } = await supabase.from("grade_categories").insert({ classroom_id: classroomId, name, weight, position: (count ?? 0) + 1 });
+  if (error) throw new Error(`Could not add category: ${error.message}`);
   revalidatePath(gbPath(classroomId));
 }
 
@@ -57,7 +58,8 @@ export async function deleteCategory(formData: FormData) {
   const classroomId = String(formData.get("classroomId"));
   const id = String(formData.get("id"));
   const supabase = await assertTeacher(classroomId);
-  await supabase.from("grade_categories").delete().eq("id", id).eq("classroom_id", classroomId);
+  const { error } = await supabase.from("grade_categories").delete().eq("id", id).eq("classroom_id", classroomId);
+  if (error) throw new Error(`Could not delete category: ${error.message}`);
   revalidatePath(gbPath(classroomId));
 }
 
@@ -75,7 +77,7 @@ export async function addItem(formData: FormData) {
     .from("grade_items")
     .select("id", { count: "exact", head: true })
     .eq("classroom_id", classroomId);
-  await supabase.from("grade_items").insert({
+  const { error } = await supabase.from("grade_items").insert({
     classroom_id: classroomId,
     name,
     max_points: maxPoints,
@@ -85,6 +87,7 @@ export async function addItem(formData: FormData) {
     due_at: dueAt ? new Date(dueAt).toISOString() : null,
     position: (count ?? 0) + 1,
   });
+  if (error) throw new Error(`Could not add grade item: ${error.message}`);
   revalidatePath(gbPath(classroomId));
 }
 
@@ -92,7 +95,8 @@ export async function deleteItem(formData: FormData) {
   const classroomId = String(formData.get("classroomId"));
   const id = String(formData.get("id"));
   const supabase = await assertTeacher(classroomId);
-  await supabase.from("grade_items").delete().eq("id", id).eq("classroom_id", classroomId);
+  const { error } = await supabase.from("grade_items").delete().eq("id", id).eq("classroom_id", classroomId);
+  if (error) throw new Error(`Could not delete grade item: ${error.message}`);
   revalidatePath(gbPath(classroomId));
 }
 
@@ -101,7 +105,8 @@ export async function toggleItemPublished(formData: FormData) {
   const id = String(formData.get("id"));
   const published = String(formData.get("published")) === "true";
   const supabase = await assertTeacher(classroomId);
-  await supabase.from("grade_items").update({ published }).eq("id", id).eq("classroom_id", classroomId);
+  const { error } = await supabase.from("grade_items").update({ published }).eq("id", id).eq("classroom_id", classroomId);
+  if (error) throw new Error(`Could not update grade item: ${error.message}`);
   revalidatePath(gbPath(classroomId));
 }
 
@@ -165,7 +170,8 @@ async function syncEntriesFor(
     });
   }
   if (rows.length === 0) return 0;
-  await supabase.from("grade_entries").upsert(rows, { onConflict: "grade_item_id,student_id" });
+  const { error } = await supabase.from("grade_entries").upsert(rows, { onConflict: "grade_item_id,student_id" });
+  if (error) throw new Error(`Could not sync grades: ${error.message}`);
   return rows.length;
 }
 
@@ -197,7 +203,7 @@ export async function importAssignment(formData: FormData) {
       .from("grade_items")
       .select("id", { count: "exact", head: true })
       .eq("classroom_id", classroomId);
-    const { data: created } = await supabase
+    const { data: created, error: createErr } = await supabase
       .from("grade_items")
       .insert({
         classroom_id: classroomId,
@@ -210,6 +216,7 @@ export async function importAssignment(formData: FormData) {
       })
       .select("id")
       .single();
+    if (createErr) throw new Error(`Could not create grade item: ${createErr.message}`);
     item = created;
   }
   if (item) await syncEntriesFor(supabase, classroomId, item.id, assignmentId, user!.id);
@@ -236,9 +243,9 @@ export async function syncAssignmentItem(formData: FormData) {
 
 // Upsert a single grade. points="" clears the grade (back to ungraded).
 const EntryInput = z.object({
-  classroomId: z.string().uuid(),
-  gradeItemId: z.string().uuid(),
-  studentId: z.string().uuid(),
+  classroomId: z.string().guid(),
+  gradeItemId: z.string().guid(),
+  studentId: z.string().guid(),
   points: z.number().nullable(),
   feedback: z.string().max(4000).optional(),
 });
@@ -248,9 +255,10 @@ export async function setEntry(input: z.infer<typeof EntryInput>) {
   const { data: { user } } = await supabase.auth.getUser();
   if (points == null && !feedback) {
     // clearing the grade entirely
-    await supabase.from("grade_entries").delete().eq("grade_item_id", gradeItemId).eq("student_id", studentId);
+    const { error } = await supabase.from("grade_entries").delete().eq("grade_item_id", gradeItemId).eq("student_id", studentId);
+    if (error) throw new Error(`Could not clear the grade: ${error.message}`);
   } else {
-    await supabase.from("grade_entries").upsert(
+    const { error } = await supabase.from("grade_entries").upsert(
       {
         grade_item_id: gradeItemId,
         student_id: studentId,
@@ -261,6 +269,9 @@ export async function setEntry(input: z.infer<typeof EntryInput>) {
       },
       { onConflict: "grade_item_id,student_id" },
     );
+    // Surface the failure instead of reporting success — a dropped save must not
+    // look saved in the grid.
+    if (error) throw new Error(`Could not save the grade: ${error.message}`);
   }
   revalidatePath(gbPath(classroomId));
   return { ok: true };

@@ -6,7 +6,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 export const runtime = "nodejs";
 
 const Body = z.object({
-  courseId: z.string().uuid(),
+  courseId: z.string().guid(),
   target: z.enum(["lesson", "assignment"]),
   topic: z.string().min(3).max(400),
   lessonKind: z.enum(["reading", "grammar", "listening", "writing"]).default("reading"),
