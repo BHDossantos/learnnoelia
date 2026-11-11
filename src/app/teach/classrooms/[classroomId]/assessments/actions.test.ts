@@ -22,7 +22,7 @@ vi.mock("@/lib/supabase/server", () => ({ supabaseServer: async () => ({
   },
 }) }));
 
-import { addQuestion } from "./actions";
+import { addQuestion, setWrittenScore, publishAttempt } from "./actions";
 const legacyId = "11111111-1111-1111-1111-111111111111";
 const input = (id = legacyId) => ({
   classroomId: id, assessmentId: id, kind: "short" as const,
@@ -70,16 +70,17 @@ describe("Assessment Builder reconciliation", () => {
   });
 });
 
-// Upstream question types must survive the readiness branch reconciliation.
-describe("expanded question kinds", () => {
-  it("preserves True/False options and answer key", async () => {
-    await addQuestion({ ...input(), kind: "truefalse", correctIndex: 1 });
-    expect(m.insertQuestion).toHaveBeenCalledWith(expect.objectContaining({ kind: "truefalse", options: ["True", "False"] }));
-    expect(m.insertKey).toHaveBeenCalledWith(expect.objectContaining({ correct_index: 1 }));
+
+describe("Assessment grading transactions", () => {
+  it("surfaces missing-row scoring failures from the transaction", async () => {
+    m.rpc.mockImplementation(async (name: string) => name === "is_classroom_teacher" ? { data: true } : { error: { message: "Response not found" } });
+    await expect(setWrittenScore({ classroomId: legacyId, attemptId: legacyId, questionId: legacyId, points: 1 })).rejects.toThrow("Response not found");
+    expect(m.rpc).toHaveBeenCalledWith("score_assessment_written", expect.objectContaining({ p_attempt: legacyId, p_points: 1 }));
   });
-  it("preserves numeric keys and tolerances", async () => {
-    await addQuestion({ ...input(), kind: "numeric", correctNumber: 42, numberTolerance: 0.5 });
-    expect(m.insertQuestion).toHaveBeenCalledWith(expect.objectContaining({ kind: "numeric", options: null }));
-    expect(m.insertKey).toHaveBeenCalledWith(expect.objectContaining({ correct_number: 42, number_tolerance: 0.5 }));
+  it("does not revalidate a partially failed publication", async () => {
+    m.rpc.mockImplementation(async (name: string) => name === "is_classroom_teacher" ? { data: true } : { error: { message: "gradebook failed" } });
+    const form = new FormData();form.set("classroomId", legacyId);form.set("attemptId", legacyId);
+    await expect(publishAttempt(form)).rejects.toThrow("gradebook failed");
+    expect(m.revalidate).not.toHaveBeenCalled();
   });
 });

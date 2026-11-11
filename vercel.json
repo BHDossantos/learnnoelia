@@ -8,7 +8,9 @@
   "git": {
     "deploymentEnabled": {
       "fix/teacher-e2e-bdc3261": false,
-      "fix/store-readiness-20261102": false
+      "fix/store-readiness-20261102": false,
+      "fix/tutor-payment-integrity-20261105": false,
+      "fix/assessment-integrity-20261106": false
     }
   }
 }

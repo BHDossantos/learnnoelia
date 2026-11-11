@@ -28,7 +28,7 @@ export default async function SessionPage(
     .from("tutors").select("display_name,rate_cents_per_minute").eq("id", s.tutor_id).single();
 
   let token: string | null = null;
-  if (s.livekit_room && process.env.LIVEKIT_API_KEY) {
+  if (s.status === "live" && s.livekit_room && process.env.LIVEKIT_API_KEY) {
     token = await mintLivekitToken({
       identity: user.id,
       name: user.user_metadata?.display_name ?? "Participant",

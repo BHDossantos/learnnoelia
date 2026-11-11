@@ -140,19 +140,14 @@ const WrittenScore = z.object({
   points: z.coerce.number().min(0),
   feedback: z.string().max(4000).optional(),
 });
-// Score one written response. UPDATE (not upsert) so the student's answer isn't
-// clobbered; a skipped written question simply has no row and scores 0.
+// Score an existing submitted written response; missing rows fail explicitly.
 export async function setWrittenScore(input: z.input<typeof WrittenScore>) {
   const data = WrittenScore.parse(input);
   const { supabase } = await assertTeacher(data.classroomId);
-  const { data: q } = await supabase.from("assessment_questions").select("points").eq("id", data.questionId).maybeSingle();
-  const max = q?.points ?? data.points;
-  const pts = Math.min(data.points, max);
-  const { error } = await supabase
-    .from("assessment_responses")
-    .update({ points_awarded: pts, is_correct: pts >= max, feedback_md: data.feedback ?? null, updated_at: new Date().toISOString() })
-    .eq("attempt_id", data.attemptId)
-    .eq("question_id", data.questionId);
+  const { error } = await supabase.rpc("score_assessment_written", {
+    p_classroom: data.classroomId, p_attempt: data.attemptId, p_question: data.questionId,
+    p_points: data.points, p_feedback: data.feedback ?? null,
+  });
   if (error) throw new Error(`Could not save the score: ${error.message}`);
   return { ok: true };
 }
@@ -209,56 +204,12 @@ export async function publishAttempt(formData: FormData) {
   const attemptId = String(formData.get("attemptId"));
   const { supabase } = await assertTeacher(classroomId);
 
-  const { data: attempt } = await supabase
-    .from("assessment_attempts")
-    .select("id,student_id,assessment_id,assessment:assessments(id,title,classroom_id,created_by)")
-    .eq("id", attemptId)
-    .maybeSingle();
-  const a = (attempt as any)?.assessment;
-  if (!attempt || !a || a.classroom_id !== classroomId) throw new Error("Attempt not found");
-
-  const [{ data: resp }, { data: qs }] = await Promise.all([
-    supabase.from("assessment_responses").select("question_id,points_awarded,is_correct").eq("attempt_id", attemptId),
-    supabase.from("assessment_questions").select("id,points,prompt").eq("assessment_id", attempt.assessment_id),
-  ]);
-  const score = (resp ?? []).reduce((s: number, r: any) => s + (Number(r.points_awarded) || 0), 0);
-  const maxScore = (qs ?? []).reduce((s: number, q: any) => s + (Number(q.points) || 0), 0);
-  const now = new Date().toISOString();
-
-  const { error: upErr } = await supabase
-    .from("assessment_attempts")
-    .update({ status: "graded", published: true, score, max_score: maxScore, submitted_at: now })
-    .eq("id", attemptId);
-  if (upErr) throw new Error(`Could not publish: ${upErr.message}`);
-
-  const { data: gi, error: giErr } = await supabase
-    .from("grade_items")
-    .upsert({ classroom_id: classroomId, assessment_id: a.id, name: a.title, type: "quiz", max_points: maxScore, published: true }, { onConflict: "classroom_id,assessment_id" })
-    .select("id")
-    .single();
-  if (giErr) throw new Error(`Could not update the gradebook: ${giErr.message}`);
-  const { error: geErr } = await supabase
-    .from("grade_entries")
-    .upsert({ grade_item_id: gi.id, student_id: attempt.student_id, points: score, graded_by: a.created_by, graded_at: now }, { onConflict: "grade_item_id,student_id" });
-  if (geErr) throw new Error(`Could not record the grade: ${geErr.message}`);
-
-  // Analyze: feed the student's mastery + misconceptions (service role, since it
-  // writes the student's skill_states from the teacher's session).
-  const admin = supabaseAdmin();
-  if (admin) {
-    const respByQ = new Map((resp ?? []).map((r: any) => [r.question_id, r]));
-    await feedAssessmentMastery(
-      admin,
-      attempt.student_id,
-      (qs ?? []).map((q: any) => {
-        const r = respByQ.get(q.id);
-        return { questionId: q.id, prompt: q.prompt ?? "", points: Number(q.points) || 0, pointsAwarded: r?.points_awarded ?? null, isCorrect: r?.is_correct ?? null };
-      }),
-    );
-  }
-
-  revalidatePath(`/teach/classrooms/${classroomId}/assessments/${attempt.assessment_id}/results`);
-  redirect(`/teach/classrooms/${classroomId}/assessments/${attempt.assessment_id}/results`);
+  const { data: assessmentId, error } = await supabase.rpc("publish_assessment_result", {
+    p_classroom: classroomId, p_attempt: attemptId,
+  });
+  if (error || !assessmentId) throw new Error(`Could not publish results: ${error?.message ?? "missing result"}`);
+  revalidatePath(`/teach/classrooms/${classroomId}/assessments/${assessmentId}/results`);
+  redirect(`/teach/classrooms/${classroomId}/assessments/${assessmentId}/results`);
 }
 
 // Live monitoring snapshot for a teacher: who's taking the exam, their activity,
