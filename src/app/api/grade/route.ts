@@ -89,10 +89,11 @@ Return STRICT JSON only:
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await supabase
+  const { error: statusErr } = await supabase
     .from("submissions")
     .update({ status: "graded" })
     .eq("id", submission.id);
+  if (statusErr) return NextResponse.json({ error: statusErr.message }, { status: 500 });
 
   return NextResponse.json({ grade });
 }

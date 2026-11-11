@@ -6,7 +6,7 @@ test("teacher can edit and delete a lesson", async ({ page }) => {
   const courseTitle = `Edit test ${Date.now()}`;
 
   await page.goto("/teach");
-  await page.getByRole("link", { name: /\+ course/i }).first().click();
+  await page.getByRole("link", { name: /\+ build a course/i }).first().click();
   await page.locator('input[name="title"]').fill(courseTitle);
   await page.locator('select[name="language"]').selectOption("es");
   await page.getByRole("button", { name: "Create course" }).click();
