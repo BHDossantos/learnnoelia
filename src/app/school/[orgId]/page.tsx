@@ -25,7 +25,7 @@ export default async function OrgPage(props: { params: Promise<{ orgId: string }
       .eq("org_id", params.orgId),
     supabase
       .from("classrooms")
-      .select("id,name,grade_level,classroom_members(user_id)")
+      .select("id,name,grade_level,term,classroom_members(user_id)")
       .eq("org_id", params.orgId)
       .order("created_at", { ascending: true }),
     supabase
@@ -48,6 +48,7 @@ export default async function OrgPage(props: { params: Promise<{ orgId: string }
     id: c.id,
     name: c.name,
     grade_level: c.grade_level,
+    term: c.term ?? null,
     size: (c.classroom_members ?? []).length,
   }));
 

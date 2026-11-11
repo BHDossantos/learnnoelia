@@ -9,7 +9,7 @@ export default async function FamilyPage() {
   const supabase = await supabaseServer();
 
   const [{ data: profile }, { data: links }] = await Promise.all([
-    supabase.from("profiles").select("guardian_invite_code").eq("id", user.id).single(),
+    supabase.from("profiles").select("guardian_invite_code, role").eq("id", user.id).single(),
     supabase
       .from("guardians")
       .select("student_id, student:profiles!guardians_student_id_fkey(id,display_name)")
@@ -25,6 +25,7 @@ export default async function FamilyPage() {
     <FamilyClient
       initialCode={profile?.guardian_invite_code ?? null}
       linkedStudents={linkedStudents}
+      role={(profile?.role as string) ?? null}
     />
   );
 }

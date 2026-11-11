@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { provisionDemoClass } from "@/lib/demo";
 
 async function requireUserId() {
   const supabase = await supabaseServer();
@@ -42,6 +44,7 @@ const CreateClassroomInput = z.object({
   orgId: z.string().uuid(),
   name: z.string().min(1).max(120),
   gradeLevel: z.string().max(40).optional(),
+  term: z.string().max(40).optional(),
 });
 
 export async function createClassroom(input: z.input<typeof CreateClassroomInput>) {
@@ -51,9 +54,34 @@ export async function createClassroom(input: z.input<typeof CreateClassroomInput
     org_id: data.orgId,
     name: data.name,
     grade_level: data.gradeLevel ?? null,
+    term: data.term ?? null,
   });
   if (error) throw new Error(error.message);
   revalidatePath(`/school/${data.orgId}`);
+}
+
+// One-click demo setup for a teacher with no class yet: creates a school, a demo
+// classroom pre-loaded with a spread of catalog courses across every subject,
+// and makes the teacher its owner + classroom teacher — so they land in a
+// working, demonstrable class instead of an empty "go create an org" wall.
+// Idempotent: if the teacher already runs a class, it just returns that one.
+export async function setupDemoClassroom(): Promise<void> {
+  const { supabase, userId } = await requireUserId();
+
+  // Already teaching a class? Go straight there.
+  const { data: existing } = await supabase
+    .from("classroom_members")
+    .select("classroom:classrooms(id,org_id)")
+    .eq("user_id", userId)
+    .eq("role", "teacher")
+    .limit(1)
+    .maybeSingle();
+  const ex = (existing as any)?.classroom;
+  if (ex?.id && ex?.org_id) redirect(`/school/${ex.org_id}/classrooms/${ex.id}`);
+
+  const { orgId, classroomId } = await provisionDemoClass(supabase, supabaseAdmin(), userId);
+  revalidatePath("/teach");
+  redirect(`/school/${orgId}/classrooms/${classroomId}`);
 }
 
 const SetOrgRoleInput = z.object({
@@ -129,6 +157,36 @@ export async function assignCourseToClassroom(input: z.input<typeof ClassroomCou
     p_classroom: data.classroomId,
     p_course: data.courseId,
   });
+  revalidatePath(`/school/${data.orgId}/classrooms/${data.classroomId}`);
+}
+
+const ClassroomCoursesInput = z.object({
+  orgId: z.string().uuid(),
+  classroomId: z.string().uuid(),
+  courseIds: z.array(z.string().uuid()).min(1).max(100),
+});
+
+// Assign several catalog (or own) courses to a classroom at once, auto-enrolling
+// every current student in each. Lets a teacher tick boxes in the catalog and
+// stand up a class in one step instead of building courses from scratch.
+export async function assignCoursesToClassroom(input: z.input<typeof ClassroomCoursesInput>) {
+  const data = ClassroomCoursesInput.parse(input);
+  const { supabase, userId } = await requireUserId();
+  const rows = data.courseIds.map((course_id) => ({
+    classroom_id: data.classroomId,
+    course_id,
+    assigned_by: userId,
+  }));
+  const { error } = await supabase
+    .from("classroom_courses")
+    .upsert(rows, { onConflict: "classroom_id,course_id" });
+  if (error) throw new Error(error.message);
+  for (const course_id of data.courseIds) {
+    await supabase.rpc("sync_classroom_course_enrollments", {
+      p_classroom: data.classroomId,
+      p_course: course_id,
+    });
+  }
   revalidatePath(`/school/${data.orgId}/classrooms/${data.classroomId}`);
 }
 

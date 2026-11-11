@@ -30,7 +30,7 @@ export default async function ClassroomPage(
     { data: classMembers },
     { data: myOrgMembership },
     { data: assignedCourses },
-    { data: myCourses },
+    { data: catalogCourses },
     { data: meetings },
     { data: announcements },
   ] = await Promise.all([
@@ -52,16 +52,21 @@ export default async function ClassroomPage(
       .from("classroom_courses")
       .select(`
         course:courses(
-          id,title,subject,kind,
+          id,title,subject,kind,teacher_id,
           assignments(id)
         )
       `)
       .eq("classroom_id", params.classroomId),
+    // Assignable = the whole published catalog (platform content) PLUS the
+    // teacher's own courses. Teachers pick from this by subject; they don't have
+    // to build a course from scratch.
     supabase
       .from("courses")
-      .select("id,title,kind")
-      .eq("teacher_id", user.id)
-      .order("created_at", { ascending: false }),
+      .select("id,title,kind,school,subject")
+      .eq("published", true)
+      .or(`teacher_id.is.null,teacher_id.eq.${user.id}`)
+      .order("school")
+      .order("position"),
     supabase
       .from("class_meetings")
       .select("id,title,location,scheduled_at,duration_minutes,attendance(user_id)")
@@ -105,11 +110,17 @@ export default async function ClassroomPage(
       subject: c.subject,
       kind: c.kind,
       assignmentCount: (c.assignments ?? []).length,
+      owned: c.teacher_id === user.id,
     }));
   const assignedIds = new Set(assigned.map((c) => c.id));
-  const assignable = (myCourses ?? [])
+  const assignable = (catalogCourses ?? [])
     .filter((c: any) => !assignedIds.has(c.id))
-    .map((c: any) => ({ id: c.id, title: c.title, kind: c.kind }));
+    .map((c: any) => ({
+      id: c.id,
+      title: c.title,
+      school: (c.school as string) ?? c.kind ?? "other",
+      subject: c.subject as string | null,
+    }));
 
   const studentCount = inClassroom.filter((p) => p.role === "student").length;
   const meetingRows = (meetings ?? []).map((m: any) => ({
@@ -129,7 +140,7 @@ export default async function ClassroomPage(
       ? { data: [] as any[] }
       : await supabase
           .from("assignments")
-          .select("id,title,kind,due_at,course_id")
+          .select("id,title,kind,due_at,course_id,teacher_id")
           .in("course_id", assignedCourseIds)
           .eq("published", true)
           .order("due_at", { ascending: true, nullsFirst: false })
@@ -184,9 +195,17 @@ export default async function ClassroomPage(
           )}
         </div>
         {canManage && (
-          <Link href={`/teach/classrooms/${classroom.id}/gradebook`} className="btn-primary shrink-0 text-sm">
-            📊 Gradebook
-          </Link>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Link href={`/teach/classrooms/${classroom.id}/assessments`} className="btn-ghost text-sm">
+              📝 Assessments
+            </Link>
+            <Link href={`/teach/grade?classroomId=${classroom.id}`} className="btn-ghost text-sm">
+              📸 Grade papers
+            </Link>
+            <Link href={`/teach/classrooms/${classroom.id}/gradebook`} className="btn-primary text-sm">
+              📊 Gradebook
+            </Link>
+          </div>
         )}
       </header>
 
@@ -226,7 +245,10 @@ export default async function ClassroomPage(
           <ul className="space-y-2">
             {(recentAssignments ?? []).map((a) => (
               <li key={a.id}>
-                <Link href={`/teach/assignments/${a.id}`} className="card flex items-center justify-between">
+                <Link
+                  href={(a as any).teacher_id === user.id ? `/teach/assignments/${a.id}` : `/learn/${a.course_id}`}
+                  className="card flex items-center justify-between"
+                >
                   <div>
                     <p className="font-medium">{a.title}</p>
                     <p className="text-xs text-ink-500 capitalize">

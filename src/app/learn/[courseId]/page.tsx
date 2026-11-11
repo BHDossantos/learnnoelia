@@ -105,8 +105,14 @@ export default async function CoursePage(props: { params: Promise<{ courseId: st
   }
   const doneCount = list.filter((l) => doneIds.has(l.id)).length;
   const pct = list.length ? Math.round((doneCount / list.length) * 100) : 0;
-  // The "next" lesson is the first incomplete one.
-  const nextId = list.find((l) => !doneIds.has(l.id))?.id ?? null;
+  // The "next" lesson is the first incomplete one — but don't funnel a brand-new
+  // learner into the opening diagnostic quiz. Lead with real content (the first
+  // reading/lesson); the optional diagnostic is still one click away in the list.
+  const openingDiagnosticId = list[0]?.kind === "quiz" ? list[0].id : null;
+  const nextId =
+    list.find((l) => !doneIds.has(l.id) && l.id !== openingDiagnosticId)?.id ??
+    list.find((l) => !doneIds.has(l.id))?.id ??
+    null;
 
   // Prerequisites (recommendation, not a hard lock): which are finished?
   const prereqIds: string[] = (course as any).prerequisite_ids ?? [];
@@ -594,7 +600,9 @@ export default async function CoursePage(props: { params: Promise<{ courseId: st
               {mod.lessons.map((l, j) => {
                 const done = doneIds.has(l.id);
                 const isNext = l.id === nextId;
-                const locked = !done && !isNext; // must finish earlier lessons first
+                // Content is freely browsable — every lesson is openable. Checkpoint
+                // quizzes still require a passing score to count, but nothing is hidden.
+                const locked = false;
                 const score = scoreById.get(l.id);
                 const isQuiz = l.kind === "quiz";
                 const inner = (
@@ -623,7 +631,7 @@ export default async function CoursePage(props: { params: Promise<{ courseId: st
                       ~{l.estimated_minutes ?? 10} min
                     </span>
                     <span className="text-right text-sm" aria-hidden>
-                      {done ? "✅" : isNext ? "▶" : "🔒"}
+                      {done ? "✅" : isNext ? "▶" : "○"}
                       {isQuiz ? (l.id === finalQuizId ? " 🏆" : " ⭐") : ""}
                     </span>
                   </>
