@@ -45,8 +45,7 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.5.2",
-    "@electric-sql/pglite": "0.5.8",
+    "@capacitor/cli": "^8.6.0",
     "@playwright/test": "^1.63.0",
     "@types/node": "^22.20.5",
     "@types/react": "^18",
