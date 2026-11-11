@@ -46,8 +46,8 @@ async function recomputeTotal(
 }
 
 const QuestionInput = z.object({
-  classroomId: z.string().uuid(),
-  assessmentId: z.string().uuid(),
+  classroomId: z.string().guid(),
+  assessmentId: z.string().guid(),
   kind: z.enum(["mcq", "multi", "short", "written", "truefalse", "numeric"]),
   prompt: z.string().min(1).max(4000),
   points: z.coerce.number().min(0).max(1000).default(1),
@@ -134,9 +134,9 @@ export async function setStatus(formData: FormData) {
 // ===== Teacher review of written answers + publish =====
 
 const WrittenScore = z.object({
-  classroomId: z.string().uuid(),
-  attemptId: z.string().uuid(),
-  questionId: z.string().uuid(),
+  classroomId: z.string().guid(),
+  attemptId: z.string().guid(),
+  questionId: z.string().guid(),
   points: z.coerce.number().min(0),
   feedback: z.string().max(4000).optional(),
 });
@@ -160,9 +160,9 @@ export async function setWrittenScore(input: z.input<typeof WrittenScore>) {
 // AI grading suggestion for a written answer (uses the rubric). Returns a
 // suggested score + feedback for the teacher to accept or edit — never auto-saved.
 const AiGrade = z.object({
-  classroomId: z.string().uuid(),
-  questionId: z.string().uuid(),
-  attemptId: z.string().uuid(),
+  classroomId: z.string().guid(),
+  questionId: z.string().guid(),
+  attemptId: z.string().guid(),
 });
 export async function aiGradeWritten(input: z.input<typeof AiGrade>): Promise<
   { offline: true } | { offline: false; score: number; feedback: string }
@@ -312,9 +312,9 @@ export async function setAnonymous(formData: FormData) {
 
 // Set a student's extra-time accommodation (percent). 0 clears it.
 const AccomInput = z.object({
-  classroomId: z.string().uuid(),
-  assessmentId: z.string().uuid(),
-  studentId: z.string().uuid(),
+  classroomId: z.string().guid(),
+  assessmentId: z.string().guid(),
+  studentId: z.string().guid(),
   extraTimePct: z.coerce.number().int().min(0).max(300),
 });
 export async function setAccommodation(input: z.input<typeof AccomInput>) {
@@ -335,8 +335,8 @@ export async function setAccommodation(input: z.input<typeof AccomInput>) {
 
 // AI question generation — author several questions (with keys) from a topic.
 const GenInput = z.object({
-  classroomId: z.string().uuid(),
-  assessmentId: z.string().uuid(),
+  classroomId: z.string().guid(),
+  assessmentId: z.string().guid(),
   topic: z.string().min(2).max(500),
   count: z.coerce.number().int().min(1).max(15).default(5),
 });

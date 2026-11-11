@@ -39,8 +39,8 @@ export async function logMonitorEvent(attemptId: string, eventType: string) {
 }
 
 const SaveInput = z.object({
-  attemptId: z.string().uuid(),
-  questionId: z.string().uuid(),
+  attemptId: z.string().guid(),
+  questionId: z.string().guid(),
   response: z.any(),
 });
 // Autosave one answer. RLS only allows this while the attempt is in_progress.

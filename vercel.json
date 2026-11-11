@@ -7,7 +7,8 @@
   ],
   "git": {
     "deploymentEnabled": {
-      "fix/teacher-e2e-bdc3261": false
+      "fix/teacher-e2e-bdc3261": false,
+      "fix/store-readiness-20261102": false
     }
   }
 }
