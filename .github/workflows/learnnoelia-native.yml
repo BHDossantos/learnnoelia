@@ -28,7 +28,7 @@ jobs:
       - run: npx cap sync android
       - name: Build unsigned Android bundle for validation
         run: cd android && ./gradlew bundleRelease
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: learnnoelia-android-unsigned
           path: android/app/build/outputs/bundle/release/*.aab
