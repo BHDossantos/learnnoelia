@@ -47,7 +47,7 @@ jobs:
       - name: Compile debug APK and unsigned release bundle
         working-directory: android
         run: ./gradlew --no-daemon :app:assembleDebug :app:bundleRelease :app:lintDebug
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: learnnoelia-android-validation-${{ github.sha }}
           path: |
@@ -57,7 +57,7 @@ jobs:
           retention-days: 14
       - name: Upload Android lint report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: learnnoelia-android-lint-${{ github.sha }}
           path: android/app/build/reports/lint-results-debug.*
@@ -90,7 +90,7 @@ jobs:
           APP="$RUNNER_TEMP/noelia-derived/Build/Products/Debug-iphonesimulator/App.app"
           test -d "$APP"
           ditto -c -k --keepParent "$APP" "$RUNNER_TEMP/learnnoelia-simulator.zip"
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: learnnoelia-ios-simulator-${{ github.sha }}
           path: ${{ runner.temp }}/learnnoelia-simulator.zip
