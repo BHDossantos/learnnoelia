@@ -1,3 +1,4 @@
+import { MarkingWorkspace } from "@/components/MarkingWorkspace";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireOnboardedUser } from "@/lib/auth";
@@ -69,6 +70,7 @@ export default async function AssignmentResultPage(
           Submitted {new Date(submission.submitted_at).toLocaleString()} · {submission.status}
         </p>
       </header>
+      <MarkingWorkspace kind="submission" targetId={submission.id} readOnly />
       {isFinal ? (
         <section className="card space-y-2">
           <p className="text-xs font-semibold uppercase text-green-700">Final grade</p>

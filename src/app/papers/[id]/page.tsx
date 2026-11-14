@@ -1,3 +1,4 @@
+import { MarkingWorkspace } from "@/components/MarkingWorkspace";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireOnboardedUser } from "@/lib/auth";
@@ -55,6 +56,7 @@ export default async function PaperPage(props: { params: Promise<{ id: string }>
       </header>
 
       {canShare && <PaperActions paperId={paper.id as string} />}
+      <MarkingWorkspace kind="paper" targetId={paper.id as string} />
 
       {focus.length > 0 && (
         <section className="card">

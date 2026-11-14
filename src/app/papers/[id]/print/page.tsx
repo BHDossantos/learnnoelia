@@ -1,3 +1,4 @@
+import { MarkingWorkspace } from "@/components/MarkingWorkspace";
 import { notFound } from "next/navigation";
 import { requireOnboardedUser } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -79,6 +80,8 @@ export default async function PrintPaperPage(props: { params: Promise<{ id: stri
       </div>
 
       {paper.summary_md && <p className="mt-4 text-sm leading-relaxed">{paper.summary_md}</p>}
+
+      <MarkingWorkspace kind="paper" targetId={paper.id as string} readOnly />
 
       {/* Marked-up questions */}
       {annotations.length > 0 && (

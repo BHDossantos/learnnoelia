@@ -143,7 +143,7 @@ export function PaperGrader({ students }: { students: Student[] }) {
               </div>
             </div>
           )}
-          {savedId && <Link href={`/papers/${savedId}`} className="btn-ghost inline-block text-sm">View full feedback & plan →</Link>}
+          {savedId && <Link href={`/papers/${savedId}`} className="btn-ghost inline-block text-sm">Mark original work & view feedback →</Link>}
         </div>
       )}
     </div>

@@ -1,3 +1,4 @@
+import { MarkingWorkspace } from "@/components/MarkingWorkspace";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
@@ -110,6 +111,7 @@ export default async function TeacherSubmissionPage(
       </section>
 
       <IntegrityPanel submissionId={s.id} existing={integrity ?? null} />
+      <MarkingWorkspace kind="submission" targetId={s.id} />
 
       <form action={submitTeacherReview} className="card space-y-2">
         <h2 className="font-semibold">Your review</h2>

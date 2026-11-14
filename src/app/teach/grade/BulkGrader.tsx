@@ -314,7 +314,7 @@ export function BulkGrader({ classrooms, students }: { classrooms: Classroom[]; 
                         🖨️ Print report
                       </a>
                       <a href={`/papers/${it.paperId}`} target="_blank" rel="noreferrer" className="text-xs text-brand-500">
-                        View
+                        Mark & view
                       </a>
                       {it.email?.busy && <span className="text-xs text-ink-500">Sending…</span>}
                       {it.email?.msg && <span className="text-xs text-green-700">{it.email.msg}</span>}

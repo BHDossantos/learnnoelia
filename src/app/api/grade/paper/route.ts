@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { supabaseServer } from "@/lib/supabase/server";
+import { preservePaperOriginal } from "@/lib/paper-original";
 import { buildPaperGradingSystem } from "@/lib/grading";
 
 export const runtime = "nodejs";
@@ -86,6 +87,11 @@ export async function POST(req: Request) {
   try { g = JSON.parse(jsonText); }
   catch { return NextResponse.json({ error: "Could not parse the grade.", raw }, { status: 502 }); }
 
+  let originalPath: string | null = null;
+  if (image) {
+    try { originalPath = await preservePaperOriginal(supabase, user.id, Buffer.from(image.data, "base64"), image.media_type); }
+    catch (error) { return NextResponse.json({ error: (error as Error).message }, { status: 502 }); }
+  }
   const { data: saved, error } = await supabase
     .from("paper_gradings")
     .insert({
@@ -94,7 +100,9 @@ export async function POST(req: Request) {
       title: title ?? subject ?? "Paper",
       subject: subject ?? null,
       source: image ? "image" : "typed",
-      raw_text: typeof g.transcribed === "string" ? g.transcribed : text ?? null,
+      raw_text: text ?? (typeof g.transcribed === "string" ? g.transcribed : null),
+      original_path: originalPath,
+      original_mime: image?.media_type ?? null,
       score: typeof g.score === "number" ? g.score : null,
       max_score: typeof g.max_score === "number" ? g.max_score : (maxScore ?? 100),
       feedback_md: [g.summary_md, g.feedback_md].filter(Boolean).join("\n\n") || null,

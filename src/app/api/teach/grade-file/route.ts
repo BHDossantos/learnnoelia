@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { preservePaperOriginal } from "@/lib/paper-original";
 import { buildPaperGradingSystem } from "@/lib/grading";
 import { classifyFile, pptxToText } from "@/lib/extract";
 import { findOrCreateStudent } from "@/lib/students";
@@ -78,6 +79,7 @@ export async function POST(req: Request) {
   const kind = classifyFile(file.type, file.name);
   const buf = Buffer.from(await file.arrayBuffer());
   const content: any[] = [];
+  let originalText: string | null = null;
   let sourceKind: "image" | "pdf" | "pptx" | "typed" = "typed";
 
   if (kind === "image") {
@@ -101,6 +103,7 @@ export async function POST(req: Request) {
     if (!text.trim()) {
       return NextResponse.json({ error: "Could not read any text from that PowerPoint file." }, { status: 422 });
     }
+    originalText = text;
     content.push({ type: "text", text: `Grade this presentation. Slide text follows:\n\n${text.slice(0, 40000)}` });
   } else {
     // Plain text / unknown: try to read as UTF-8.
@@ -108,6 +111,7 @@ export async function POST(req: Request) {
     if (!text.trim()) {
       return NextResponse.json({ error: "Unsupported file type. Use an image, PDF, or PowerPoint." }, { status: 415 });
     }
+    originalText = text;
     sourceKind = "typed";
     content.push({ type: "text", text: `Grade this submission:\n\n${text.slice(0, 40000)}` });
   }
@@ -172,6 +176,13 @@ export async function POST(req: Request) {
     }
   }
 
+  const originalMime = kind === "image" ? content[0].source.media_type as string
+    : kind === "pdf" ? "application/pdf"
+    : kind === "pptx" ? "application/vnd.openxmlformats-officedocument.presentationml.presentation" : "text/plain";
+  let originalPath: string;
+  try { originalPath = await preservePaperOriginal(supabase, user.id, buf, originalMime); }
+  catch (error) { return NextResponse.json({ error: (error as Error).message }, { status: 502 }); }
+
   // File the grading (the trigger notifies student + parents + teachers).
   const { data: saved, error } = await supabase
     .from("paper_gradings")
@@ -181,7 +192,9 @@ export async function POST(req: Request) {
       title: title ?? subject ?? file.name ?? "Paper",
       subject,
       source: sourceKind,
-      raw_text: typeof g.transcribed === "string" ? g.transcribed : null,
+      raw_text: originalText ?? (typeof g.transcribed === "string" ? g.transcribed : null),
+      original_path: originalPath,
+      original_mime: originalMime,
       score: typeof g.score === "number" ? g.score : null,
       max_score: typeof g.max_score === "number" ? g.max_score : maxScore,
       feedback_md: [g.summary_md, g.feedback_md].filter(Boolean).join("\n\n") || null,

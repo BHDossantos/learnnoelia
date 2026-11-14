@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { removeAccountUploads } from "./account-deletion";
 const id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 function fixture(list: ReturnType<typeof vi.fn>, remove = vi.fn().mockResolvedValue({ error: null })) {
-  return { admin: { storage: { from: vi.fn(() => ({ list, remove })) } } as unknown as SupabaseClient, remove };
+  return { admin: { from: vi.fn(() => ({ select: () => ({ eq: () => ({ not: () => ({ order: () => ({ range: async () => ({ data: [], error: null }) }) }) }) }) })), storage: { from: vi.fn(() => ({ list, remove })) } } as unknown as SupabaseClient, remove };
 }
 describe("account upload deletion", () => {
   it("recurses only under the authenticated user's prefix", async () => {
@@ -29,6 +29,15 @@ describe("account upload deletion", () => {
     expect(remove).not.toHaveBeenCalled();
     const failed = fixture(vi.fn().mockResolvedValue({ data: [{ name: "a", id: "a" }] }), vi.fn().mockResolvedValue({ error: {} }));
     await expect(removeAccountUploads(failed.admin, id)).rejects.toThrow("remove your uploads");
+  });
+  it("removes only this student's referenced originals, including teacher uploads", async () => {
+    const { admin, remove } = fixture(vi.fn().mockResolvedValue({ data: [] }));
+    const eq = vi.fn(() => ({ not: () => ({ order: () => ({ range: async () => ({ data: [{ original_path: "teacher/synthetic.png" }], error: null }) }) }) }));
+    vi.mocked(admin.from).mockReturnValue({ select: () => ({ eq }) } as any);
+    await removeAccountUploads(admin, id);
+    expect(eq).toHaveBeenCalledWith("student_id", id);
+    expect(admin.storage.from).toHaveBeenCalledWith("paper-originals");
+    expect(remove).toHaveBeenCalledWith(["teacher/synthetic.png"]);
   });
   it("rejects traversal and invalid account IDs", async () => {
     const { admin } = fixture(vi.fn().mockResolvedValue({ data: [{ name: "..", id: null }] }));
