@@ -4,8 +4,8 @@ name: Daily course & improvement agent
 # pipeline and makes one safe verified improvement, then commits + pushes.
 # Durable — runs on GitHub's schedule, independent of any Claude session.
 #
-# It STAYS DORMANT until the ANTHROPIC_API_KEY repository secret is set (i.e. at
-# go-live). Add these repo secrets to activate:
+# It cannot execute until ANTHROPIC_API_KEY is configured. Missing credentials
+# are reported as a blocked/failed run, never as successful work. Required secret:
 #   - ANTHROPIC_API_KEY  (required — the model key)
 # The built-in GITHUB_TOKEN handles the commit/push (contents: write below).
 
@@ -36,13 +36,7 @@ jobs:
         id: guard
         env:
           KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          if [ -z "$KEY" ]; then
-            echo "No ANTHROPIC_API_KEY secret yet — skipping until go-live."
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          fi
+        run: bash scripts/check-daily-agent-key.sh
 
       - uses: actions/setup-node@v7
         if: steps.guard.outputs.run == 'true'
@@ -63,7 +57,7 @@ jobs:
           # courses + one safe improvement and verifies the build itself.
           claude -p "$(cat .claude/daily-improve.md)" \
             --permission-mode acceptEdits \
-            --allowedTools "Bash,Read,Edit,Write" || true
+            --allowedTools "Bash,Read,Edit,Write"
 
       - name: Verify build before publishing
         if: steps.guard.outputs.run == 'true'
@@ -79,7 +73,7 @@ jobs:
           if [ -n "$(git status --porcelain)" ]; then
             git add -A
             git commit -m "chore(daily-agent): automated courses + improvement"
-            git pull --rebase origin claude/language-learning-app-vfwbQ || true
+            git pull --rebase origin claude/language-learning-app-vfwbQ
             git push origin claude/language-learning-app-vfwbQ
           else
             echo "No changes this run."
