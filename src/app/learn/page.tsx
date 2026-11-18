@@ -20,6 +20,18 @@ const SCHOOLS: { id: Subject; icon: string; label: string; blurb: string }[] = [
   { id: "arts", icon: "🎨", label: "Arts", blurb: "Music, theater, film, visual art, architecture & dance." },
 ];
 
+// Per-subject accent used on the course-card icon tile, so a learner can tell
+// courses apart at a glance instead of reading each paragraph.
+const SUBJECT_ACCENT: Record<Subject, string> = {
+  language: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300",
+  math: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300",
+  science: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+  technology: "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300",
+  business: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+  humanities: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
+  arts: "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-500/15 dark:text-fuchsia-300",
+};
+
 export default async function LearnPage(
   props: {
     searchParams: Promise<{ lang?: string; scope?: string; school?: string }>;
@@ -192,7 +204,7 @@ export default async function LearnPage(
         </Link>
       </div>
 
-      <TopicCatalog topics={topics} icon={school.icon} />
+      <TopicCatalog topics={topics} icon={subject === "language" ? LANGUAGES[lang]?.flag ?? school.icon : school.icon} accent={SUBJECT_ACCENT[subject]} />
     </div>
   );
 }
