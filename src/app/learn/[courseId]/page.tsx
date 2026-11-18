@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { TopicExplorer } from "@/components/learning/TopicExplorer";
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import { requireOnboardedUser } from "@/lib/auth";
@@ -151,33 +151,6 @@ export default async function CoursePage(props: { params: Promise<{ courseId: st
     )
     .map((p) => (typeof p.score === "number" ? p.score : 70));
 
-  // Module grouping: every quiz lesson is a checkpoint that ENDS a module.
-  // A diagnostic quiz sitting at the very start of the course forms its own
-  // "Diagnostic" module; remaining segments are numbered Module 1, 2, …
-  type LessonRow = (typeof list)[number];
-  const modules: { label: string; num: number; lessons: LessonRow[] }[] = [];
-  {
-    let current: LessonRow[] = [];
-    let moduleNum = 0;
-    for (const l of list) {
-      current.push(l);
-      if (l.kind === "quiz") {
-        const isDiagnostic = modules.length === 0 && current.length === 1;
-        modules.push({
-          label: isDiagnostic ? "Diagnostic" : `Module ${++moduleNum}`,
-          num: isDiagnostic ? 0 : moduleNum,
-          lessons: current,
-        });
-        current = [];
-      }
-    }
-    if (current.length > 0) {
-      modules.push({ label: `Module ${++moduleNum}`, num: moduleNum, lessons: current });
-    }
-  }
-  // The last quiz in the whole path is the final checkpoint.
-  const finalQuizId = [...list].reverse().find((l) => l.kind === "quiz")?.id ?? null;
-
   // Evidence-based mastery labels (skill_states) with a score-derived fallback.
   const STATE_LABEL: Record<string, { label: string; cls: string }> = {
     mastered: { label: "Mastered", cls: "bg-green-100 text-green-700" },
@@ -277,7 +250,7 @@ export default async function CoursePage(props: { params: Promise<{ courseId: st
             <h1 className="text-2xl font-bold">{course.title}</h1>
             <EnrollButton courseId={course.id} enrolled={enrolled} />
           </div>
-          <p className="truncate text-sm text-ink-500">{course.description}</p>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-500">{course.description}</p>
           {alignedChips.length > 0 && (
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-500">Aligned to</span>
@@ -342,7 +315,7 @@ export default async function CoursePage(props: { params: Promise<{ courseId: st
             <p className="text-sm font-semibold">{doneCount} of {list.length}</p>
           </div>
           <div className="rounded-xl bg-black/[0.03] p-2.5">
-            <p className="text-[10px] uppercase tracking-wider text-ink-500">Time spent</p>
+            <p className="text-[10px] uppercase tracking-wider text-ink-500">Completed content</p>
             <p className="text-sm font-semibold">{formatMinutes(minutesSpent)}</p>
           </div>
           <div className="rounded-xl bg-black/[0.03] p-2.5">
@@ -575,119 +548,11 @@ export default async function CoursePage(props: { params: Promise<{ courseId: st
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start lg:gap-6">
       <div id="curriculum">
       <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-ink-500">Curriculum</h2>
-      {/* Table header */}
-      <div className="grid grid-cols-[2.5rem_minmax(0,1fr)_3.5rem] items-center gap-2 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-500 sm:grid-cols-[2.5rem_minmax(0,1fr)_6rem_4.5rem_3.5rem]">
-        <span>Nr</span>
-        <span>Topic</span>
-        <span className="hidden sm:block">Type</span>
-        <span className="hidden sm:block">Time</span>
-        <span className="text-right">Status</span>
-      </div>
-      {/* Curriculum table, grouped by module */}
-      <ol className="relative space-y-0" data-testid="learning-path">
-        {modules.map((mod, mi) => {
-          const modDone = mod.lessons.filter((l) => doneIds.has(l.id)).length;
-          return (
-            <Fragment key={mod.label}>
-              {/* Module header row */}
-              <li className={`pb-2 ${mi > 0 ? "pt-3" : ""}`}>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">
-                  {mod.label === "Diagnostic"
-                    ? "Diagnostic"
-                    : `${mod.label} — ${modDone} of ${mod.lessons.length} done`}
-                </p>
-              </li>
-              {mod.lessons.map((l, j) => {
-                const done = doneIds.has(l.id);
-                const isNext = l.id === nextId;
-                // Content is freely browsable — every lesson is openable. Checkpoint
-                // quizzes still require a passing score to count, but nothing is hidden.
-                const locked = false;
-                const score = scoreById.get(l.id);
-                const isQuiz = l.kind === "quiz";
-                const inner = (
-                  <>
-                    <span className="text-xs font-semibold text-ink-500">
-                      {mod.num}.{j + 1}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium">{l.title}</span>
-                      <span className="block text-[11px] capitalize text-ink-500 sm:hidden">
-                        {l.kind} · ~{l.estimated_minutes ?? 10} min
-                      </span>
-                      {done && typeof score === "number" && (
-                        <span className="block text-[11px] text-ink-500">
-                          Scored {Math.round(score)}
-                        </span>
-                      )}
-                      {locked && (
-                        <span className="block text-[11px] text-ink-500">Finish the lesson before this one</span>
-                      )}
-                    </span>
-                    <span className="hidden text-xs capitalize text-ink-500 sm:block">
-                      {KIND_ICON[l.kind] ?? (isQuiz ? "★" : "📘")} {l.kind}
-                    </span>
-                    <span className="hidden text-xs text-ink-500 sm:block">
-                      ~{l.estimated_minutes ?? 10} min
-                    </span>
-                    <span className="text-right text-sm" aria-hidden>
-                      {done ? "✅" : isNext ? "▶" : "○"}
-                      {isQuiz ? (l.id === finalQuizId ? " 🏆" : " ⭐") : ""}
-                    </span>
-                  </>
-                );
-                const gridCls = "card grid grid-cols-[2.5rem_minmax(0,1fr)_3.5rem] items-center gap-2 py-2.5 sm:grid-cols-[2.5rem_minmax(0,1fr)_6rem_4.5rem_3.5rem]";
-                return (
-                  <li key={l.id} className="pb-1.5">
-                    {locked ? (
-                      <div
-                        className={`${gridCls} cursor-not-allowed opacity-50`}
-                        aria-disabled="true"
-                        title="Finish the lesson you're on first"
-                      >
-                        {inner}
-                      </div>
-                    ) : (
-                      <Link
-                        href={`/learn/${course.id}/${l.id}`}
-                        className={`${gridCls} ${isNext ? "border-brand-500/40 shadow-md" : done ? "opacity-90" : ""}`}
-                      >
-                        {inner}
-                      </Link>
-                    )}
-                  </li>
-                );
-              })}
-            </Fragment>
-          );
-        })}
-        {/* Terminal node: the course certificate at the end of the path */}
-        {list.length > 0 && (
-          <li className="pt-3">
-            {pct === 100 ? (
-              <Link
-                href={`/certificates/${course.id}`}
-                className="card flex items-center gap-3 border-brand-500/40 bg-brand-50"
-              >
-                <span className="text-2xl">🎓</span>
-                <div className="flex-1">
-                  <div className="font-medium">🎓 Certificate</div>
-                  <div className="text-xs text-ink-500">Course complete — view your certificate</div>
-                </div>
-                <span className="text-ink-500">›</span>
-              </Link>
-            ) : (
-              <div className="card flex items-center gap-3 opacity-60">
-                <span className="text-2xl grayscale">🎓</span>
-                <div className="flex-1">
-                  <div className="font-medium text-ink-500">🎓 Certificate</div>
-                  <div className="text-xs text-ink-500">Complete all lessons</div>
-                </div>
-              </div>
-            )}
-          </li>
-        )}
-      </ol>
+      <TopicExplorer courseId={course.id} nextId={nextId} lessons={list.map(l => ({
+        id: l.id, title: l.title, kind: l.kind, estimated_minutes: l.estimated_minutes,
+        completed: doneIds.has(l.id), mastery: masteryOf(l.id)?.label ?? null,
+      }))} />
+
       </div>
 
       {/* Desktop right rail: skill-dimension progress + full skills mastery */}

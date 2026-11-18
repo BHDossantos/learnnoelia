@@ -1,3 +1,5 @@
+import { allRows } from "@/lib/all-rows";
+import { TopicCatalog } from "@/components/learning/TopicCatalog";
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import { LANGUAGES, type LanguageCode } from "@/lib/languages";
@@ -99,6 +101,19 @@ export default async function LearnPage(
   }
 
   const { data: courses } = await query;
+  const ids = (courses ?? []).map(c => c.id);
+  const [catalogLessons, completed] = ids.length ? await Promise.all([
+    allRows((from,to) => supabase.from("lessons").select("id,course_id,kind,position,estimated_minutes").in("course_id", ids).order("position").order("id").range(from,to)),
+    allRows((from,to) => supabase.from("lesson_progress").select("lesson_id").eq("user_id", user.id).not("completed_at", "is", null).order("lesson_id").range(from,to)),
+  ]) : [[], []];
+  const completedIds = new Set((completed ?? []).map(p => p.lesson_id));
+  const topics = (courses ?? []).map(c => {
+    const lessons = (catalogLessons ?? []).filter(l => l.course_id === c.id);
+    const next = lessons.find((l,i) => !completedIds.has(l.id) && !(i === 0 && l.kind === "quiz")) ?? lessons.find(l => !completedIds.has(l.id));
+    return { ...c, total: lessons.length, done: lessons.filter(l => completedIds.has(l.id)).length,
+      minutes: lessons.reduce((n,l) => n + Math.max(0,l.estimated_minutes ?? 0),0), nextId: next?.id ?? null };
+  });
+
 
   const qs = (over: Partial<{ school: string; lang: string; scope: string }>) => {
     const p = new URLSearchParams();
@@ -140,7 +155,7 @@ export default async function LearnPage(
         ))}
       </div>
 
-      <header>
+      <header className="rounded-3xl border border-brand-500/10 bg-gradient-to-br from-brand-50 via-white to-violet-50 p-6 sm:p-8 dark:from-brand-500/10 dark:via-transparent dark:to-violet-500/10">
         <h1 className="text-2xl font-bold">
           {subject === "language"
             ? `Learn ${LANGUAGES[lang]?.label ?? lang}`
@@ -189,65 +204,7 @@ export default async function LearnPage(
         </Link>
       </div>
 
-      <ul className="grid gap-3 sm:grid-cols-2">
-        {(courses ?? []).map((c) => {
-          // Icon: the target-language flag for language courses, otherwise the
-          // school's emoji. Keeps every card visually distinct.
-          const icon =
-            subject === "language"
-              ? LANGUAGES[(c.language as LanguageCode) ?? lang]?.flag ?? school.icon
-              : school.icon;
-          return (
-            <li key={c.id}>
-              <Link
-                href={`/learn/${c.id}`}
-                className="card group block h-full transition hover:-translate-y-0.5 hover:border-brand-500/40 hover:shadow-md"
-              >
-                <div className="flex items-start gap-3">
-                  <div
-                    className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl text-xl ${SUBJECT_ACCENT[subject]}`}
-                    aria-hidden
-                  >
-                    {icon}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <h2 className="font-semibold leading-snug">{c.title}</h2>
-                      {c.cefr_level && subject === "language" && (
-                        <span className="shrink-0 rounded-md bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
-                          {c.cefr_level}
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-1 line-clamp-2 text-sm text-ink-500">{c.description}</p>
-                    <div className="mt-2 flex items-center justify-between">
-                      {c.goal_tag ? (
-                        <span className="inline-block rounded-full bg-black/5 px-2 py-0.5 text-xs text-ink-600 dark:bg-white/10">
-                          goal: {c.goal_tag}
-                        </span>
-                      ) : (
-                        <span />
-                      )}
-                      <span className="text-sm font-medium text-brand-500 opacity-0 transition group-hover:opacity-100">
-                        Open →
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            </li>
-          );
-        })}
-        {(!courses || courses.length === 0) && (
-          <li className="card text-sm text-ink-500 sm:col-span-2">
-            {subject !== "language"
-              ? "This school opens as soon as the latest platform update is applied to the database."
-              : scope === "mine"
-                ? "Nothing here yet. Browse all courses to enroll, or ask your teacher to attach a course to your classroom."
-                : "No published courses yet for this language."}
-          </li>
-        )}
-      </ul>
+      <TopicCatalog topics={topics} icon={subject === "language" ? LANGUAGES[lang]?.flag ?? school.icon : school.icon} accent={SUBJECT_ACCENT[subject]} />
     </div>
   );
 }

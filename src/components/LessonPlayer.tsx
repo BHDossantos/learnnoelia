@@ -94,6 +94,7 @@ export function LessonPlayer({
   streakDays?: number | null;
   nudgeVariant?: string | null;
 }) {
+  const [focusMode, setFocusMode] = useState(false);
   let content: React.ReactNode;
   if (lesson.kind === "vocab") {
     content = (
@@ -210,7 +211,7 @@ export function LessonPlayer({
   // Desktop three-zone layout at lg+; below lg the sidebars are hidden and
   // the single-column experience is untouched. Grid templates are written as
   // full literal class strings so Tailwind's JIT picks them up.
-  const gridCols =
+  const gridCols = focusMode ? "lg:grid-cols-1" :
     hasOutline && hasVocabPanel
       ? "lg:grid-cols-[240px_minmax(0,1fr)_280px]"
       : hasOutline
@@ -219,7 +220,7 @@ export function LessonPlayer({
 
   return (
     <div className={`lg:grid lg:items-start lg:gap-6 ${gridCols}`}>
-      {hasOutline && (
+      {hasOutline && !focusMode && (
         <aside className="hidden lg:sticky lg:top-4 lg:block">
           <CourseOutline
             outline={outline}
@@ -230,7 +231,15 @@ export function LessonPlayer({
           />
         </aside>
       )}
-      <div className="min-w-0">
+      <div className={`min-w-0 ${focusMode ? "mx-auto w-full max-w-3xl" : ""}`}>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-black/5 bg-white/80 p-3 dark:bg-white/5">
+          <Link href={`/learn/${courseId}`} className="text-sm font-medium text-brand-600">Topic overview</Link>
+          <button type="button" aria-pressed={focusMode} onClick={() => setFocusMode(!focusMode)} className="rounded-lg border border-brand-500/20 px-3 py-2 text-sm font-medium">{focusMode ? "Show study panels" : "Focus mode"}</button>
+        </div>
+        {hasOutline && <details className={`mb-4 rounded-xl border border-black/10 p-3 ${focusMode ? "" : "lg:hidden"}`}>
+          <summary className="cursor-pointer text-sm font-semibold">Course contents · lesson {currentIdx + 1} of {outline.length}</summary>
+          <div className="mt-3"><CourseOutline outline={outline} modules={modules} courseId={courseId} courseTitle={courseTitle} currentLessonId={lesson.id} /></div>
+        </details>}
         {/* Top bar (content view): back link + course title, estimated time.
             Quiz lessons render their own assessment top bar instead. */}
         {!isQuiz && (
@@ -286,13 +295,13 @@ export function LessonPlayer({
               </Link>
             ) : (
               <Link href={`/learn/${courseId}`} className="btn-primary">
-                Finish course ✓
+                Back to topic
               </Link>
             )}
           </div>
         )}
       </div>
-      {hasVocabPanel && (
+      {hasVocabPanel && !focusMode && (
         <aside className="hidden lg:sticky lg:top-4 lg:block">
           <VocabPanel
             items={vocabItems}
@@ -451,7 +460,7 @@ function VocabPanel({
   );
 }
 
-function ContentLesson({
+export function ContentLesson({
   body, title, courseId, lessonId, grammar,
 }: {
   body: any;
@@ -461,7 +470,9 @@ function ContentLesson({
   grammar: string | null;
 }) {
   const [done, setDone] = useState(false);
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [largeText, setLargeText] = useState(false);
 
   // Supported shapes:
   //   { content: "markdown-ish text" }
@@ -477,11 +488,15 @@ function ContentLesson({
   const tip: string | null =
     typeof body?.notes === "string" && body.notes.trim() ? body.notes : grammar;
 
-  function complete() {
-    startTransition(async () => {
-      try { await completeLessonAction(lessonId, 100); } catch {}
-    });
-    setDone(true);
+  async function complete() {
+    if (pending) return;
+    setPending(true); setSaveError(null);
+    try {
+      await completeLessonAction(lessonId, 100);
+      setDone(true);
+    } catch {
+      setSaveError("Progress could not be saved. Your lesson is still here — please try again.");
+    } finally { setPending(false); }
   }
 
   if (done) {
@@ -499,10 +514,17 @@ function ContentLesson({
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold">{title}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold leading-tight">{title}</h1>
+        <button type="button" aria-pressed={largeText} onClick={() => setLargeText(!largeText)} className="rounded-lg border px-3 py-2 text-sm">{largeText ? "Standard text" : "Larger text"}</button>
+      </div>
+      {sections.length > 1 && <nav aria-label="In this lesson" className="card bg-brand-50/50">
+        <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand-700">In this lesson</p>
+        <ol className="grid gap-2 sm:grid-cols-2">{sections.map((section,i) => <li key={i}><a className="text-sm text-brand-700 underline-offset-4 hover:underline dark:text-blue-300" href={`#lesson-section-${i}`}>{i+1}. {section.heading || `Part ${i+1}`}</a></li>)}</ol>
+      </nav>}
 
       {body?.content && (
-        <article className="card whitespace-pre-wrap text-sm leading-relaxed text-ink-700">
+        <article className={`card whitespace-pre-wrap leading-relaxed text-ink-700 dark:text-slate-200 ${largeText ? "text-lg" : "text-base"}`}>
           {body.content}
         </article>
       )}
@@ -517,9 +539,9 @@ function ContentLesson({
       )}
 
       {sections.map((s, i) => (
-        <section key={i} className="card space-y-1">
+        <section key={i} id={`lesson-section-${i}`} className="card scroll-mt-6 space-y-3 p-5 sm:p-6">
           {s.heading && <h2 className="font-semibold">{s.heading}</h2>}
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-700">{s.text}</p>
+          <p className={`whitespace-pre-wrap leading-relaxed text-ink-700 dark:text-slate-200 ${largeText ? "text-lg" : "text-base"}`}>{s.text}</p>
         </section>
       ))}
 
@@ -541,7 +563,8 @@ function ContentLesson({
         </details>
       )}
 
-      <button onClick={complete} className="btn-primary w-full">Mark complete</button>
+      {saveError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{saveError}</p>}
+      <button onClick={complete} disabled={pending} className="btn-primary w-full">{pending ? "Saving progress…" : "Mark complete"}</button>
       <Link href={`/learn/${courseId}`} className="block text-center text-sm text-ink-500">
         Back to course
       </Link>
