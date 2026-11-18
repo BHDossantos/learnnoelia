@@ -18,6 +18,18 @@ const SCHOOLS: { id: Subject; icon: string; label: string; blurb: string }[] = [
   { id: "arts", icon: "🎨", label: "Arts", blurb: "Music, theater, film, visual art, architecture & dance." },
 ];
 
+// Per-subject accent used on the course-card icon tile, so a learner can tell
+// courses apart at a glance instead of reading each paragraph.
+const SUBJECT_ACCENT: Record<Subject, string> = {
+  language: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300",
+  math: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300",
+  science: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+  technology: "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300",
+  business: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+  humanities: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
+  arts: "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-500/15 dark:text-fuchsia-300",
+};
+
 export default async function LearnPage(
   props: {
     searchParams: Promise<{ lang?: string; scope?: string; school?: string }>;
@@ -177,29 +189,57 @@ export default async function LearnPage(
         </Link>
       </div>
 
-      <ul className="space-y-3">
-        {(courses ?? []).map((c) => (
-          <li key={c.id}>
-            <Link href={`/learn/${c.id}`} className="card block">
-              <div className="flex items-center justify-between">
-                <h2 className="font-semibold">{c.title}</h2>
-                {c.cefr_level && subject === "language" && (
-                  <span className="rounded-md bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700">
-                    {c.cefr_level}
-                  </span>
-                )}
-              </div>
-              <p className="mt-1 text-sm text-ink-500">{c.description}</p>
-              {c.goal_tag && (
-                <span className="mt-2 inline-block rounded-full bg-black/5 px-2 py-0.5 text-xs">
-                  goal: {c.goal_tag}
-                </span>
-              )}
-            </Link>
-          </li>
-        ))}
+      <ul className="grid gap-3 sm:grid-cols-2">
+        {(courses ?? []).map((c) => {
+          // Icon: the target-language flag for language courses, otherwise the
+          // school's emoji. Keeps every card visually distinct.
+          const icon =
+            subject === "language"
+              ? LANGUAGES[(c.language as LanguageCode) ?? lang]?.flag ?? school.icon
+              : school.icon;
+          return (
+            <li key={c.id}>
+              <Link
+                href={`/learn/${c.id}`}
+                className="card group block h-full transition hover:-translate-y-0.5 hover:border-brand-500/40 hover:shadow-md"
+              >
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl text-xl ${SUBJECT_ACCENT[subject]}`}
+                    aria-hidden
+                  >
+                    {icon}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <h2 className="font-semibold leading-snug">{c.title}</h2>
+                      {c.cefr_level && subject === "language" && (
+                        <span className="shrink-0 rounded-md bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
+                          {c.cefr_level}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-sm text-ink-500">{c.description}</p>
+                    <div className="mt-2 flex items-center justify-between">
+                      {c.goal_tag ? (
+                        <span className="inline-block rounded-full bg-black/5 px-2 py-0.5 text-xs text-ink-600 dark:bg-white/10">
+                          goal: {c.goal_tag}
+                        </span>
+                      ) : (
+                        <span />
+                      )}
+                      <span className="text-sm font-medium text-brand-500 opacity-0 transition group-hover:opacity-100">
+                        Open →
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            </li>
+          );
+        })}
         {(!courses || courses.length === 0) && (
-          <li className="card text-sm text-ink-500">
+          <li className="card text-sm text-ink-500 sm:col-span-2">
             {subject !== "language"
               ? "This school opens as soon as the latest platform update is applied to the database."
               : scope === "mine"
