@@ -18,7 +18,7 @@ test('teacher daily review uses real status and opens prepared feedback and pape
   await insert('classroom_members',[{classroom_id:classroom,user_id:teacher,role:'teacher'},{classroom_id:classroom,user_id:student,role:'student'}]);
   await insert('courses',{id:course,title:'Review course',language:'en',kind:'science',teacher_id:teacher,published:true});
   const lesson=randomUUID();
-  await insert('lessons',[{id:lesson,course_id:course,title:'Completed lesson',position:1,kind:'reading',body:{content:'Read the evidence.'}},{course_id:course,title:'Next lesson',position:2,kind:'reading',body:{content:'Compare the evidence.'}}]);
+  await insert('lessons',[{id:lesson,course_id:course,title:'Completed lesson',position:1,kind:'reading',body:{content:'Read the evidence.'}},{id:randomUUID(),course_id:course,title:'Next lesson',position:2,kind:'reading',body:{content:'Compare the evidence.'}}]);
   await insert('lesson_progress',{user_id:student,lesson_id:lesson,completed_at:new Date().toISOString(),score:90});
   await insert('classroom_courses',{classroom_id:classroom,course_id:course,assigned_by:teacher});
   await insert('enrollments',{user_id:student,course_id:course,role:'student'});
