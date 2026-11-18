@@ -174,3 +174,15 @@ export function computeFinalGrade(opts: {
     gpa: l?.gpa ?? null,
   };
 }
+
+// Filter only the roster: every item still contributes to the final grade.
+export function filterGradebookStudents<T extends { id: string; name: string }>(
+  students: T[], items: Pick<GradeItem, "id">[], points: Record<string, string>,
+  query: string, ungradedOnly: boolean,
+): T[] {
+  const needle = query.trim().toLocaleLowerCase();
+  return students.filter((student) =>
+    student.name.toLocaleLowerCase().includes(needle) &&
+    (!ungradedOnly || items.some((item) => !points[`${student.id}:${item.id}`]?.trim()))
+  );
+}

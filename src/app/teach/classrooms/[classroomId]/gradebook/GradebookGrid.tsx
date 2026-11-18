@@ -2,6 +2,7 @@
 import { useMemo, useState } from "react";
 import {
   computeFinalGrade,
+  filterGradebookStudents,
   type GradeCategory,
   type GradeItem,
   type SchemeBand,
@@ -34,6 +35,10 @@ export function GradebookGrid({
     for (const e of initialEntries) m[`${e.student_id}:${e.grade_item_id}`] = e.points == null ? "" : String(e.points);
     return m;
   });
+  const [savedPoints, setSavedPoints] = useState(points);
+  const [query, setQuery] = useState("");
+  const [ungradedOnly, setUngradedOnly] = useState(false);
+  const visibleStudents = filterGradebookStudents(students, items, savedPoints, query, ungradedOnly);
   const [saving, setSaving] = useState<Record<string, "saving" | "saved" | "error">>({});
 
   const finals = useMemo(() => {
@@ -59,6 +64,7 @@ export function GradebookGrid({
     setSaving((s) => ({ ...s, [key]: "saving" }));
     try {
       await setEntry({ classroomId, gradeItemId: item.id, studentId, points: value });
+      setSavedPoints((p) => ({ ...p, [key]: raw }));
       setSaving((s) => ({ ...s, [key]: "saved" }));
       setTimeout(() => setSaving((s) => { const n = { ...s }; delete n[key]; return n; }), 1200);
     } catch {
@@ -68,6 +74,12 @@ export function GradebookGrid({
 
   return (
     <section className="card overflow-x-auto p-0">
+      <div className="flex flex-wrap items-center gap-3 p-3">
+        <label>Find student <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} className="rounded border px-2 py-1" /></label>
+        <label><input type="checkbox" checked={ungradedOnly} onChange={(e) => setUngradedOnly(e.target.checked)} /> Has ungraded work</label>
+        <span role="status">{visibleStudents.length} of {students.length} students</span>
+        <button type="button" onClick={() => { setQuery(""); setUngradedOnly(false); }}>Clear filters</button>
+      </div>
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="border-b border-black/10 text-left">
@@ -82,7 +94,7 @@ export function GradebookGrid({
           </tr>
         </thead>
         <tbody>
-          {students.map((s) => {
+          {visibleStudents.map((s) => {
             const f = finals[s.id];
             return (
               <tr key={s.id} className="border-b border-black/5">
@@ -118,6 +130,7 @@ export function GradebookGrid({
               </tr>
             );
           })}
+          {visibleStudents.length === 0 && <tr><td colSpan={items.length + 2} className="p-4 text-center">No students match these filters.</td></tr>}
         </tbody>
       </table>
       <p className="px-3 py-2 text-xs text-ink-400">
