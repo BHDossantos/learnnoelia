@@ -18,6 +18,7 @@ export function AssessmentQuestionForm({
   const [correctMulti, setCorrectMulti] = useState<Set<number>>(new Set([0]));
   const [correctText, setCorrectText] = useState("");
   const [rubric, setRubric] = useState("");
+  const [standard, setStandard] = useState("");
   const [tfCorrect, setTfCorrect] = useState(0); // 0 = True, 1 = False
   const [correctNumber, setCorrectNumber] = useState("");
   const [tolerance, setTolerance] = useState("0");
@@ -42,6 +43,7 @@ export function AssessmentQuestionForm({
           prompt: prompt.trim(),
           points,
           options: needsOptions ? options : undefined,
+          standard: standard.trim() || undefined,
           correctIndex: kind === "mcq" ? correctIndex : kind === "truefalse" ? tfCorrect : undefined,
           correctIndices: kind === "multi" ? [...correctMulti] : undefined,
           correctText: kind === "short" ? correctText.trim() : undefined,
@@ -53,6 +55,7 @@ export function AssessmentQuestionForm({
         setPrompt(""); setCorrectText(""); setRubric("");
         setOptionLines("Option A\nOption B\nOption C\nOption D");
         setCorrectIndex(0); setCorrectMulti(new Set([0]));
+        // keep `standard` so a run of same-standard questions is quick
       } catch (err: any) {
         setError(err?.message ?? "Could not add the question.");
       }
@@ -78,6 +81,10 @@ export function AssessmentQuestionForm({
         <label className="text-sm">
           <span className="block text-xs text-ink-500">Points</span>
           <input type="number" min={0} value={points} onChange={(e) => setPoints(Number(e.target.value) || 0)} className="w-24 rounded-lg border border-black/10 bg-white px-2 py-1.5 text-sm dark:bg-white/5" />
+        </label>
+        <label className="text-sm">
+          <span className="block text-xs text-ink-500">Standard (optional)</span>
+          <input value={standard} onChange={(e) => setStandard(e.target.value)} placeholder="e.g. CCSS.8.EE.7" className="w-44 rounded-lg border border-black/10 bg-white px-2 py-1.5 text-sm dark:bg-white/5" />
         </label>
       </div>
 

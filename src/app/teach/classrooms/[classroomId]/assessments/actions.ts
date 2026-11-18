@@ -52,6 +52,7 @@ const QuestionInput = z.object({
   prompt: z.string().min(1).max(4000),
   points: z.coerce.number().min(0).max(1000).default(1),
   options: z.array(z.string().min(1).max(500)).max(10).optional(),
+  standard: z.string().max(120).optional(),
   correctIndex: z.coerce.number().int().min(0).optional(),
   correctIndices: z.array(z.coerce.number().int().min(0)).optional(),
   correctText: z.string().max(1000).optional(),
@@ -83,6 +84,7 @@ export async function addQuestion(input: z.input<typeof QuestionInput>) {
       prompt: data.prompt,
       options,
       points: data.points,
+      standard: data.standard?.trim() || null,
     })
     .select("id")
     .single();
@@ -367,13 +369,13 @@ export async function duplicateAssessment(formData: FormData) {
 
   const { data: qs } = await supabase
     .from("assessment_questions")
-    .select("position,kind,prompt,options,points,assessment_answer_keys(correct_index,correct_indices,correct_text,correct_number,number_tolerance,rubric)")
+    .select("position,kind,prompt,options,points,standard,assessment_answer_keys(correct_index,correct_indices,correct_text,correct_number,number_tolerance,rubric)")
     .eq("assessment_id", assessmentId)
     .order("position");
   for (const q of (qs ?? []) as any[]) {
     const { data: nq } = await supabase
       .from("assessment_questions")
-      .insert({ assessment_id: newA.id, position: q.position, kind: q.kind, prompt: q.prompt, options: q.options, points: q.points })
+      .insert({ assessment_id: newA.id, position: q.position, kind: q.kind, prompt: q.prompt, options: q.options, points: q.points, standard: q.standard })
       .select("id")
       .single();
     const key = Array.isArray(q.assessment_answer_keys) ? q.assessment_answer_keys[0] : q.assessment_answer_keys;
