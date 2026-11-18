@@ -1,3 +1,4 @@
+import { CourseCover } from "@/components/learning/CourseCover";
 import { TopicExplorer } from "@/components/learning/TopicExplorer";
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -237,14 +238,7 @@ export default async function CoursePage(props: { params: Promise<{ courseId: st
 
       {/* HERO ROW: gradient tile · title/description/progress · certificate card */}
       <header className="flex items-start gap-4">
-        <div className="hidden h-24 w-24 shrink-0 flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-violet-500 text-white sm:flex">
-          <span className="text-xl font-extrabold leading-none">
-            {course.cefr_level ?? "101"}
-          </span>
-          <span className="mt-1 px-1 text-center text-[10px] font-medium leading-tight opacity-90">
-            {course.title.split("—")[0].trim().split(" ").slice(0, 2).join(" ")}
-          </span>
-        </div>
+        <CourseCover title={course.title} school={(course as any).school} className="hidden h-32 w-36 shrink-0 rounded-2xl sm:block" />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
             <h1 className="text-2xl font-bold">{course.title}</h1>
@@ -550,6 +544,8 @@ export default async function CoursePage(props: { params: Promise<{ courseId: st
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start lg:gap-6">
       <div id="curriculum">
       <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-ink-500">Curriculum</h2>
+      <Link href={`/assessments/course/${course.id}`} className="card block border-brand-500/20 font-semibold text-brand-700">Course exams and quizzes →</Link>
+      <Link href={`/review?course=${course.id}`} className="card block font-semibold text-brand-700">Flashcards for this course →</Link>
       <TopicExplorer courseId={course.id} nextId={nextId} lessons={list.map(l => ({
         id: l.id, title: l.title, kind: l.kind, estimated_minutes: l.estimated_minutes,
         completed: doneIds.has(l.id), mastery: masteryOf(l.id)?.label ?? null,

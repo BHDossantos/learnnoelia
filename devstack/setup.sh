@@ -79,6 +79,9 @@ docker exec -i lf_pg psql -U postgres < "$ROOT/supabase/seed/seed_es_a1.sql" >/d
 docker exec -i lf_pg psql -U postgres < "$ROOT/supabase/seed/seed_academic.sql" >/dev/null 2>&1 || true
 docker exec -i lf_pg psql -U postgres < "$ROOT/supabase/seed/seed_starter_pack.sql" >/dev/null 2>&1 || true
 
+# Biology fixture for subject-specific guided-reading regression tests.
+docker exec -i lf_pg psql -U postgres -v ON_ERROR_STOP=1 < "$ROOT/supabase/seed/curriculum/sci_biology.sql" >/dev/null
+
 # Seed test user + per-user data (idempotent)
 SRK="${SUPABASE_SERVICE_ROLE_KEY:-}"
 if [[ -z "$SRK" ]]; then

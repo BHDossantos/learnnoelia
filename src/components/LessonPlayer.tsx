@@ -1,4 +1,5 @@
 "use client";
+import { ReadingJourney } from "@/components/learning/ReadingJourney";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { rateCardAction, completeLessonAction, logQuizAnswer, recordTestResultAction } from "@/app/learn/[courseId]/[lessonId]/actions";
@@ -95,12 +96,8 @@ export function LessonPlayer({
   nudgeVariant?: string | null;
   school?: string | null;
 }) {
-  // Practice / Speak / Review are language-product tools (conversation practice,
-  // pronunciation, vocab SRS). On non-language courses they point nowhere
-  // sensible, so we only offer them for language courses. Unknown/legacy courses
-  // (no school) keep the language behavior.
-  const isLanguageCourse = !school || school === "language";
-  const [focusMode, setFocusMode] = useState(false);
+  const isLanguageCourse = school === "language";
+  const [focusMode, setFocusMode] = useState(lesson.kind === "reading");
   let content: React.ReactNode;
   if (lesson.kind === "vocab") {
     content = (
@@ -266,18 +263,7 @@ export function LessonPlayer({
             </span>
           </div>
         )}
-        {/* Lesson mode tabs (per the product design): Learn is this page;
-            the others deep-link to the matching experience. */}
-        <div className="mb-4 hidden gap-5 border-b border-black/5 text-sm lg:flex">
-          <span className="border-b-2 border-brand-500 pb-2 font-semibold text-brand-700">Learn</span>
-          {isLanguageCourse && (
-            <>
-              <a href="/practice" className="pb-2 text-ink-500 hover:text-ink-900">Practice</a>
-              <a href="/practice" className="pb-2 text-ink-500 hover:text-ink-900">Speak</a>
-              <a href="/review" className="pb-2 text-ink-500 hover:text-ink-900">Review</a>
-            </>
-          )}
-        </div>
+        {isLanguageCourse && lesson.kind !== "reading" && <nav aria-label="Language practice" className="mb-4 flex gap-5 text-sm"><a href="/practice">Speak & practice</a><a href="/review?mode=daily">Scheduled vocabulary review</a></nav>}
         {/* Module-relative numbering kicker; inner components render the title. */}
         {!isQuiz && lessonNo && (
           <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-brand-600">
@@ -515,14 +501,6 @@ export function ContentLesson({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [largeText, setLargeText] = useState(false);
 
-  // Supported shapes:
-  //   { content: "markdown-ish text" }
-  //   { sections: [{ heading, text }] }
-  //   { content, sections }
-  const sections: Array<{ heading?: string; text: string }> = Array.isArray(body?.sections)
-    ? body.sections
-    : [];
-
   // Mock's tip callout: prefer body.notes, fall back to the grammar notes.
   // When the tip IS the grammar notes we skip the collapsible Notes block
   // below so the same text never renders twice.
@@ -559,20 +537,7 @@ export function ContentLesson({
         <h1 className="text-2xl font-bold leading-tight">{title}</h1>
         <button type="button" aria-pressed={largeText} onClick={() => setLargeText(!largeText)} className="rounded-lg border px-3 py-2 text-sm">{largeText ? "Standard text" : "Larger text"}</button>
       </div>
-      {sections.length > 1 && <nav aria-label="In this lesson" className="card bg-brand-50/50">
-        <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand-700">In this lesson</p>
-        <ol className="grid gap-2 sm:grid-cols-2">{sections.map((section,i) => <li key={i}><a className="text-sm text-brand-700 underline-offset-4 hover:underline dark:text-blue-300" href={`#lesson-section-${i}`}>{i+1}. {section.heading || `Part ${i+1}`}</a></li>)}</ol>
-      </nav>}
-
-      {body?.content && (
-        <article className={`card leading-7 text-ink-700 dark:text-slate-200 ${largeText ? "text-lg leading-8" : "text-base"}`}>
-          <div className="max-w-[68ch] space-y-4">
-            {toParagraphs(String(body.content)).map((p, i) => (
-              <p key={i} className="whitespace-pre-wrap">{p}</p>
-            ))}
-          </div>
-        </article>
-      )}
+      <ReadingJourney key={lessonId} body={body} title={title} large={largeText} />
 
       {tip && (
         <div className="card border border-brand-500/20 bg-brand-50">
@@ -583,43 +548,12 @@ export function ContentLesson({
         </div>
       )}
 
-      {sections.map((s, i) => {
-        const theme = lessonSectionTheme(s.heading);
-        const paras = toParagraphs(s.text);
-        return (
-          <section
-            key={i}
-            id={`lesson-section-${i}`}
-            className={`card scroll-mt-6 space-y-3 border-l-4 p-5 sm:p-6 ${theme.accent}`}
-          >
-            {s.heading && (
-              <div className="space-y-1">
-                {theme.label && (
-                  <p className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest ${theme.eyebrow}`}>
-                    <span aria-hidden>{theme.icon}</span>
-                    {theme.label}
-                  </p>
-                )}
-                <h2 className="text-lg font-bold leading-snug">{s.heading}</h2>
-              </div>
-            )}
-            <div
-              className={`max-w-[68ch] space-y-4 leading-7 text-ink-700 dark:text-slate-200 ${largeText ? "text-lg leading-8" : "text-base"}`}
-            >
-              {paras.map((p, j) => (
-                <p key={j} className="whitespace-pre-wrap">{p}</p>
-              ))}
-            </div>
-          </section>
-        );
-      })}
-
       {body?.key_terms && Array.isArray(body.key_terms) && (
         <div className="card">
           <p className="text-xs font-semibold uppercase tracking-wider text-ink-500">Key terms</p>
           <ul className="mt-1 space-y-1 text-sm">
             {body.key_terms.map((t: any, i: number) => (
-              <li key={i}><strong>{t.term}:</strong> {t.definition}</li>
+              <li key={i}><details className="rounded-xl border border-black/10 p-3"><summary className="cursor-pointer font-semibold">{t.term}</summary><p className="mt-2 leading-6">{t.definition}</p></details></li>
             ))}
           </ul>
         </div>
