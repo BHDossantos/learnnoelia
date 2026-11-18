@@ -181,18 +181,18 @@ export default async function ProfilePage() {
 
       {/* Streak + counts */}
       <section className="grid grid-cols-3 gap-2 text-center">
-        <div className="card py-3">
-          <p className="text-2xl font-extrabold">🔥 {streak}</p>
+        <div className="card border-amber-200/70 bg-amber-50/60 py-3 dark:border-amber-500/20 dark:bg-amber-500/10">
+          <p className="text-2xl font-extrabold text-amber-600 dark:text-amber-300">🔥 {streak}</p>
           <p className="text-[11px] text-ink-500">
             day streak (best {longest}) · ❄️ {stats?.streak_freezes ?? 0}
           </p>
         </div>
-        <div className="card py-3">
-          <p className="text-2xl font-extrabold">{wordsLearned ?? 0}</p>
+        <div className="card border-sky-200/70 bg-sky-50/60 py-3 dark:border-sky-500/20 dark:bg-sky-500/10">
+          <p className="text-2xl font-extrabold text-sky-600 dark:text-sky-300">{wordsLearned ?? 0}</p>
           <p className="text-[11px] text-ink-500">words learning</p>
         </div>
-        <div className="card py-3">
-          <p className="text-2xl font-extrabold">{lessonsDone ?? 0}</p>
+        <div className="card border-emerald-200/70 bg-emerald-50/60 py-3 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+          <p className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-300">{lessonsDone ?? 0}</p>
           <p className="text-[11px] text-ink-500">lessons done</p>
         </div>
       </section>
