@@ -99,6 +99,7 @@ export function buildPaperGradingSystem(opts: {
   maxScore?: number | null;
   answerKey?: string | null;
   fromImage?: boolean;
+  fromPdf?: boolean;
   // Bulk mode: also read the student's name off the paper, and produce
   // per-question marks for a printable, teacher-style graded report.
   detectName?: boolean;
@@ -109,7 +110,7 @@ export function buildPaperGradingSystem(opts: {
     `You are a fair, rigorous teacher grading a student's completed ${opts.subject ? opts.subject + " " : ""}test/paper.`,
     opts.fromImage
       ? `The image is a photo or scan of the student's work on ANY surface - a printed test, a notebook page, a whiteboard, loose scrap paper, or even a napkin. Expect messy, cursive, or faint handwriting, rotation, skew, shadows, and glare. FIRST do your best to transcribe the student's answers and working from the image; read messy handwriting charitably and reconstruct the math or text they intended. Ignore the surface itself and any irrelevant background (lines, stains, logos). If the original question is not shown, infer from the work what problem is being solved. If part of the image is genuinely illegible, transcribe what you can and mark the rest as [illegible] rather than inventing an answer - never guess at a grade for something you cannot read.`
-      : `The student's work is provided as text.`,
+      : opts.fromPdf ? `The student's work is attached as a PDF. Read each question and the student's answer from the document. Mark illegible material as [illegible]; never invent an answer.` : `The student's work is provided as text.`,
     opts.detectName
       ? `The student usually writes their name at the top of the paper. Read it and return it as first_name and last_name. If you cannot find a name, return empty strings for both — do NOT guess a name.`
       : "",
