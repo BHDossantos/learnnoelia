@@ -18,16 +18,35 @@ type Row = {
 };
 
 export default async function StudentAssessmentsPage() {
-  await requireOnboardedUser();
+  const user = await requireOnboardedUser();
   const supabase = await supabaseServer();
 
+  // Every published course now has exams, so we can't list them all. Scope to the
+  // courses this learner is actually studying: enrolled in, or has opened a lesson
+  // in. Classroom assessments (course_id null) always show via RLS.
+  const [{ data: enrolled }, { data: progressed }] = await Promise.all([
+    supabase.from("enrollments").select("course_id").eq("user_id", user.id),
+    supabase.from("lesson_progress").select("lesson:lessons(course_id)").eq("user_id", user.id).limit(500),
+  ]);
+  const activeCourseIds = Array.from(new Set([
+    ...((enrolled ?? []).map((e: any) => e.course_id)),
+    ...((progressed ?? []).map((p: any) => (Array.isArray(p.lesson) ? p.lesson[0]?.course_id : p.lesson?.course_id))),
+  ].filter(Boolean)));
+
   // RLS returns published assessments in the student's classrooms AND all
-  // published course-level (self-paced) exams, plus the student's own attempt.
-  const { data } = await supabase
+  // published course-level exams; we additionally filter course ones to the
+  // learner's active courses so the page stays focused.
+  let query = supabase
     .from("assessments")
     .select("id,title,kind,position,total_points,time_limit_minutes,course_id,course:courses(title),assessment_attempts(status,score,max_score,published)")
     .eq("status", "published")
     .order("position", { ascending: true });
+  if (activeCourseIds.length > 0) {
+    query = query.or(`course_id.is.null,course_id.in.(${activeCourseIds.join(",")})`);
+  } else {
+    query = query.is("course_id", null);
+  }
+  const { data } = await query;
 
   const rows = (data ?? []) as Row[];
 

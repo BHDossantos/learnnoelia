@@ -116,7 +116,7 @@ export function SideNav({
         />
       ))}
       {/* Exams/assessments — literal label (no per-locale key needed). */}
-      <Item href={courseId?`/assessments/course/${courseId}`:"/assessments"} icon="🧪" label="Exams" active={isActive("/assessments")} />
+      <Item href="/assessments" icon="🧪" label="Exams" active={isActive("/assessments")} />
 
       <SectionLabel>{labels.shortcuts}</SectionLabel>
       {SHORTCUTS.map((it) => (
