@@ -14,3 +14,16 @@ it('keeps practice in this lesson and explanations hidden until requested',()=>{
  click('Review');expect(JSON.stringify(tree.toJSON())).toContain('Cells are the unit of life.');
  act(()=>tree.unmount());vi.unstubAllGlobals();
 });
+it('checks selected answers without treating the response as an official grade',()=>{
+ let tree!:ReactTestRenderer;
+ act(()=>{tree=create(React.createElement(ReadingJourney,{title:'Check',large:false,body:{practice_questions:[{prompt:'Which is the control?',options:['Untreated group','Treated group'],answer:0,explanation:'Use the untreated comparison.'}]}}));});
+ const button=()=>tree.root.findAllByType('button').find(b=>b.children.join('')==='Check answer')!;
+ expect(button().props.disabled).toBe(true);
+ act(()=>tree.root.findAllByType('input')[1].props.onChange());
+ act(()=>button().props.onClick());
+ expect(JSON.stringify(tree.toJSON())).toContain('Not quite');
+ act(()=>tree.root.findAllByType('button').find(b=>b.children.join('')==='Try again')!.props.onClick());
+ act(()=>tree.root.findAllByType('input')[0].props.onChange());act(()=>button().props.onClick());
+ expect(JSON.stringify(tree.toJSON())).toContain('Correct — check the reasoning');
+ act(()=>tree.unmount());
+});
