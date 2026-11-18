@@ -670,7 +670,12 @@ function VocabFlashcards({
   return (
     <div className="space-y-4">
       <header className="space-y-2">
-        <h1 className="text-xl font-bold">{title}</h1>
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-xl font-bold">{title}</h1>
+          <Link href={`/play/match/${lessonId}`} className="shrink-0 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-100 dark:bg-brand-500/15">
+            🎮 Match game
+          </Link>
+        </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/5">
           <div className="h-full bg-brand-500 transition-all" style={{ width: `${progress}%` }} />
         </div>
