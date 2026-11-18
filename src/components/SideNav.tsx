@@ -1,4 +1,5 @@
 "use client";
+import { courseFromPath } from "@/lib/course-context";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Dictionary } from "@/lib/i18n/dictionaries/en";
@@ -89,6 +90,7 @@ export function SideNav({
   labels: NavLabels;
 }) {
   const pathname = usePathname();
+  const courseId = courseFromPath(pathname);
   // usePathname has no search params, so "/learn?scope=all" (Library) never
   // matches — by design, /learn is claimed by My Learning only.
   const isActive = (href: string) =>
@@ -114,11 +116,11 @@ export function SideNav({
         />
       ))}
       {/* Exams/assessments — literal label (no per-locale key needed). */}
-      <Item href="/assessments" icon="🧪" label="Exams" active={isActive("/assessments")} />
+      <Item href={courseId?`/assessments/course/${courseId}`:"/assessments"} icon="🧪" label="Exams" active={isActive("/assessments")} />
 
       <SectionLabel>{labels.shortcuts}</SectionLabel>
       {SHORTCUTS.map((it) => (
-        <Item key={it.href} href={it.href} icon={it.icon} label={labels[it.key]} active={isActive(it.href)} />
+        <Item key={it.href} href={courseId&&it.href==="/review"?`/review?course=${courseId}`:courseId&&it.href==="/practice"?`/assessments/course/${courseId}`:it.href} icon={it.icon} label={labels[it.key]} active={isActive(it.href)} />
       ))}
 
       <SectionLabel>{labels.workspaces}</SectionLabel>

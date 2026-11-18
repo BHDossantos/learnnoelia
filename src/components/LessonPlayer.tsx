@@ -1,4 +1,5 @@
 "use client";
+import { ReadingJourney } from "@/components/learning/ReadingJourney";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { rateCardAction, completeLessonAction, logQuizAnswer, recordTestResultAction } from "@/app/learn/[courseId]/[lessonId]/actions";
@@ -94,7 +95,7 @@ export function LessonPlayer({
   streakDays?: number | null;
   nudgeVariant?: string | null;
 }) {
-  const [focusMode, setFocusMode] = useState(false);
+  const [focusMode, setFocusMode] = useState(lesson.kind === "reading");
   let content: React.ReactNode;
   if (lesson.kind === "vocab") {
     content = (
@@ -260,14 +261,6 @@ export function LessonPlayer({
             </span>
           </div>
         )}
-        {/* Lesson mode tabs (per the product design): Learn is this page;
-            the others deep-link to the matching experience. */}
-        <div className="mb-4 hidden gap-5 border-b border-black/5 text-sm lg:flex">
-          <span className="border-b-2 border-brand-500 pb-2 font-semibold text-brand-700">Learn</span>
-          <a href="/practice" className="pb-2 text-ink-500 hover:text-ink-900">Practice</a>
-          <a href="/practice" className="pb-2 text-ink-500 hover:text-ink-900">Speak</a>
-          <a href="/review" className="pb-2 text-ink-500 hover:text-ink-900">Review</a>
-        </div>
         {/* Module-relative numbering kicker; inner components render the title. */}
         {!isQuiz && lessonNo && (
           <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-brand-600">
@@ -474,14 +467,6 @@ export function ContentLesson({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [largeText, setLargeText] = useState(false);
 
-  // Supported shapes:
-  //   { content: "markdown-ish text" }
-  //   { sections: [{ heading, text }] }
-  //   { content, sections }
-  const sections: Array<{ heading?: string; text: string }> = Array.isArray(body?.sections)
-    ? body.sections
-    : [];
-
   // Mock's tip callout: prefer body.notes, fall back to the grammar notes.
   // When the tip IS the grammar notes we skip the collapsible Notes block
   // below so the same text never renders twice.
@@ -518,16 +503,7 @@ export function ContentLesson({
         <h1 className="text-2xl font-bold leading-tight">{title}</h1>
         <button type="button" aria-pressed={largeText} onClick={() => setLargeText(!largeText)} className="rounded-lg border px-3 py-2 text-sm">{largeText ? "Standard text" : "Larger text"}</button>
       </div>
-      {sections.length > 1 && <nav aria-label="In this lesson" className="card bg-brand-50/50">
-        <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand-700">In this lesson</p>
-        <ol className="grid gap-2 sm:grid-cols-2">{sections.map((section,i) => <li key={i}><a className="text-sm text-brand-700 underline-offset-4 hover:underline dark:text-blue-300" href={`#lesson-section-${i}`}>{i+1}. {section.heading || `Part ${i+1}`}</a></li>)}</ol>
-      </nav>}
-
-      {body?.content && (
-        <article className={`card whitespace-pre-wrap leading-relaxed text-ink-700 dark:text-slate-200 ${largeText ? "text-lg" : "text-base"}`}>
-          {body.content}
-        </article>
-      )}
+      <ReadingJourney key={lessonId} body={body} title={title} large={largeText} />
 
       {tip && (
         <div className="card border border-brand-500/20 bg-brand-50">
@@ -538,19 +514,12 @@ export function ContentLesson({
         </div>
       )}
 
-      {sections.map((s, i) => (
-        <section key={i} id={`lesson-section-${i}`} className="card scroll-mt-6 space-y-3 p-5 sm:p-6">
-          {s.heading && <h2 className="font-semibold">{s.heading}</h2>}
-          <p className={`whitespace-pre-wrap leading-relaxed text-ink-700 dark:text-slate-200 ${largeText ? "text-lg" : "text-base"}`}>{s.text}</p>
-        </section>
-      ))}
-
       {body?.key_terms && Array.isArray(body.key_terms) && (
         <div className="card">
           <p className="text-xs font-semibold uppercase tracking-wider text-ink-500">Key terms</p>
           <ul className="mt-1 space-y-1 text-sm">
             {body.key_terms.map((t: any, i: number) => (
-              <li key={i}><strong>{t.term}:</strong> {t.definition}</li>
+              <li key={i}><details className="rounded-xl border border-black/10 p-3"><summary className="cursor-pointer font-semibold">{t.term}</summary><p className="mt-2 leading-6">{t.definition}</p></details></li>
             ))}
           </ul>
         </div>

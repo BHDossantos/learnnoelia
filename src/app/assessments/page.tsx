@@ -1,3 +1,4 @@
+import { CourseAssessmentCatalog } from "@/components/learning/CourseAssessmentCatalog";
 import Link from "next/link";
 import { requireOnboardedUser } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase/server";
@@ -18,6 +19,7 @@ export default async function StudentAssessmentsPage() {
     .order("created_at", { ascending: false });
 
   const rows = assessments ?? [];
+  const {data:courses}=await supabase.from("courses").select("id,title,school").eq("published",true).order("title");
 
   function statusChip(a: any) {
     const at = Array.isArray(a.assessment_attempts) ? a.assessment_attempts[0] : a.assessment_attempts;
@@ -32,10 +34,12 @@ export default async function StudentAssessmentsPage() {
   return (
     <div className="space-y-5">
       <header>
-        <h1 className="text-2xl font-bold">Assessments</h1>
-        <p className="text-sm text-ink-500">Exams assigned to your classes.</p>
+        <h1 className="text-2xl font-bold">Exams and quizzes</h1>
+        <p className="text-sm text-ink-500">Practice by course or take an exam assigned by your teacher.</p>
       </header>
 
+      <CourseAssessmentCatalog courses={courses??[]} />
+      <h2 className="text-xl font-bold">Teacher-assigned exams</h2>
       {rows.length === 0 ? (
         <p className="card text-sm text-ink-500">No assessments assigned to you yet.</p>
       ) : (

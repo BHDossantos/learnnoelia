@@ -110,7 +110,7 @@ export default async function LearnPage(
   const topics = (courses ?? []).map(c => {
     const lessons = (catalogLessons ?? []).filter(l => l.course_id === c.id);
     const next = lessons.find((l,i) => !completedIds.has(l.id) && !(i === 0 && l.kind === "quiz")) ?? lessons.find(l => !completedIds.has(l.id));
-    return { ...c, total: lessons.length, done: lessons.filter(l => completedIds.has(l.id)).length,
+    return { ...c, school: subject, total: lessons.length, done: lessons.filter(l => completedIds.has(l.id)).length,
       minutes: lessons.reduce((n,l) => n + Math.max(0,l.estimated_minutes ?? 0),0), nextId: next?.id ?? null };
   });
 
