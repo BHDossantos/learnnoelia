@@ -15,7 +15,7 @@ export default async function LessonPage(
   const supabase = await supabaseServer();
   const [{ data: lesson }, { data: course }, { data: lessons }, { data: progress }, { data: stats }] =
     await Promise.all([
-      supabase.from("lessons").select("*").eq("id", params.lessonId).single(),
+      supabase.from("lessons").select("*").eq("id", params.lessonId).eq("course_id", params.courseId).single(),
       supabase
         .from("courses")
         .select("title,language,dialect")
