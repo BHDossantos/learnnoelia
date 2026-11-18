@@ -66,6 +66,18 @@ jobs:
           npm ci
           if [ ! -d android ]; then npx cap add android; fi
           npx cap sync android
+      - name: App icon, splash + microphone permission (Android)
+        if: steps.pre.outputs.skip != 'true'
+        run: |
+          # Real branded launcher icon + splash (no default icon) from assets/.
+          npx @capacitor/assets@3 generate --android --assetPath assets \
+            --iconBackgroundColor '#0e1022' --iconBackgroundColorDark '#0e1022' \
+            --splashBackgroundColor '#0e1022' --splashBackgroundColorDark '#0e1022'
+          # The app records audio (pronunciation, speaking submissions) — declare it.
+          MF=android/app/src/main/AndroidManifest.xml
+          if ! grep -q 'android.permission.RECORD_AUDIO' "$MF"; then
+            sed -i 's#<application#<uses-permission android:name="android.permission.RECORD_AUDIO"/>\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>\n    <application#' "$MF"
+          fi
       - name: Decode upload keystore
         if: steps.pre.outputs.skip != 'true'
         env:
@@ -138,6 +150,22 @@ jobs:
           if [ ! -d ios ]; then npx cap add ios; fi
           npx cap sync ios
           # Capacitor 8 uses Swift Package Manager; no CocoaPods Podfile is generated.
+      - name: App icon, splash + microphone/speech/camera permissions (iOS)
+        if: steps.pre.outputs.skip != 'true'
+        run: |
+          # Real branded app icon + splash (no default icon) from assets/.
+          npx @capacitor/assets@3 generate --ios --assetPath assets \
+            --iconBackgroundColor '#0e1022' --splashBackgroundColor '#0e1022' --splashBackgroundColorDark '#0e1022'
+          # Usage strings are REQUIRED or Apple rejects an app that touches these.
+          PLIST=ios/App/App/Info.plist
+          add_or_set() {
+            /usr/libexec/PlistBuddy -c "Add :$1 string $2" "$PLIST" 2>/dev/null \
+              || /usr/libexec/PlistBuddy -c "Set :$1 $2" "$PLIST"
+          }
+          add_or_set NSMicrophoneUsageDescription "Noelia uses the microphone for pronunciation practice and speaking submissions."
+          add_or_set NSSpeechRecognitionUsageDescription "Noelia uses speech recognition to check your pronunciation."
+          add_or_set NSCameraUsageDescription "Noelia uses the camera so you can photograph your work to submit or grade."
+          add_or_set NSPhotoLibraryUsageDescription "Noelia lets you attach photos of your work."
       - name: Import signing certificate into a temporary keychain
         if: steps.pre.outputs.skip != 'true'
         env:
