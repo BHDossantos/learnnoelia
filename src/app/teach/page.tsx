@@ -41,6 +41,7 @@ export default async function TeachHome() {
         <h1 className="text-2xl font-bold">Teach</h1>
         <Link href="/teach/courses/new" className="btn-ghost text-sm">+ Build a course</Link>
       </header>
+      <div className="card flex flex-wrap gap-4"><Link href="/demo/graded-paper" className="text-sm font-semibold text-brand-600">See a fully marked demo paper →</Link><Link href="/demo/student-report" className="text-sm font-semibold text-brand-600">Explore the family/teacher report demo →</Link></div>
 
       <Link
         href="/demo"
