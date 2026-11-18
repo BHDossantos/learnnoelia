@@ -202,14 +202,22 @@ export async function submitTeacherReview(formData: FormData) {
     approvedAi: formData.get("approvedAi") === "on",
   });
 
-  await supabase.from("teacher_reviews").insert({
+  const { data: submission, error: readError } = await supabase.from("submissions")
+    .select("status,assignment:assignments(teacher_id,max_score)").eq("id", data.submissionId).single();
+  const assignment = (submission as any)?.assignment;
+  if (readError || !assignment || assignment.teacher_id !== user.id) throw new Error("You cannot review this submission.");
+  if (submission.status === "draft") throw new Error("Wait for the student to submit their work.");
+  if (data.finalScore > assignment.max_score) throw new Error("The score exceeds the assignment maximum.");
+  const { error: reviewError } = await supabase.from("teacher_reviews").insert({
     submission_id: data.submissionId,
     teacher_id: user.id,
     final_score: data.finalScore,
     comments_md: data.comments,
     approved_ai: data.approvedAi,
   });
-  await supabase.from("submissions").update({ status: "returned" }).eq("id", data.submissionId);
+  if (reviewError) throw new Error("The review could not be saved. Please retry.");
+  const { error: returnError } = await supabase.from("submissions").update({ status: "returned" }).eq("id", data.submissionId);
+  if (returnError) throw new Error("The review was saved but could not be returned. Please retry returning it.");
 
   revalidatePath(`/teach/submissions/${data.submissionId}`);
   redirect(`/teach/submissions/${data.submissionId}`);

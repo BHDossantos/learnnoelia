@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import {parseTeacherGrade} from "@/lib/teacher-grade-result";
 import { anthropic, MODEL } from "@/lib/anthropic";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -8,7 +9,7 @@ export const runtime = "nodejs";
 const Body = z.object({ submissionId: z.string().guid() });
 
 export async function POST(req: Request) {
-  const parsed = Body.safeParse(await req.json());
+  const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
 
   const { data: submission } = await supabase
     .from("submissions")
-    .select("id,text,student_id,assignment:assignments(id,title,instructions_md,rubric,max_score,kind,language,teacher_id)")
+    .select("id,text,student_id,status,assignment:assignments(id,title,instructions_md,rubric,max_score,kind,language,teacher_id)")
     .eq("id", parsed.data.submissionId)
     .single();
   if (!submission) return NextResponse.json({ error: "not found" }, { status: 404 });
@@ -29,6 +30,14 @@ export async function POST(req: Request) {
   if (user.id !== submission.student_id && user.id !== assignment.teacher_id) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
+
+  if (submission.status === "draft" || submission.status === "returned") {
+    return NextResponse.json({ error: "Only submitted work can receive a new grading draft." }, { status: 409 });
+  }
+  if (!submission.text?.trim()) return NextResponse.json({ error: "No text is available to grade. Review the attachment instead." }, { status: 422 });
+  if (!process.env.ANTHROPIC_API_KEY) return NextResponse.json({ error: "AI grading is unavailable. You can still review the work manually.", offline: true }, { status: 503 });
+  const { takeRateLimit } = await import("@/lib/rate-limit");
+  if (!await takeRateLimit(`assignment-grade:${user.id}`,40,3600)) return NextResponse.json({ error: "Grading limit reached. Try again later." }, {status:429});
 
   const rubric: Array<{ name: string; weight: number; description?: string }> =
     Array.isArray(assignment.rubric) && assignment.rubric.length > 0
@@ -60,19 +69,20 @@ Return STRICT JSON only:
 }
 "feedback_md" is constructive, addressed to the student, ~200 words, with 2-3 concrete improvements.`;
 
-  const msg = await anthropic.messages.create({
+  let msg;
+  try { msg = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 1400,
     system,
     messages: [{ role: "user", content: submission.text ?? "(no submission text)" }],
-  });
+  }, { timeout: 30000 }); } catch { return NextResponse.json({ error: "AI grading could not finish. Retry without changing the submission." }, {status:503}); }
 
   const raw = msg.content.map((b) => (b.type === "text" ? b.text : "")).join("");
 
-  let parsedGrade: any;
-  try { parsedGrade = JSON.parse(raw); }
+  let parsedGrade;
+  try { parsedGrade = parseTeacherGrade(JSON.parse(raw), assignment.max_score); }
   catch {
-    return NextResponse.json({ error: "could not parse grade", raw }, { status: 502 });
+    return NextResponse.json({ error: "The grading response failed validation. No grade was saved; please retry." }, { status: 502 });
   }
 
   const { data: grade, error } = await supabase

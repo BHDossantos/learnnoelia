@@ -85,7 +85,8 @@ export default async function TeachHome() {
                   <p className="truncate font-medium">{c.name}</p>
                   <p className="text-xs text-ink-500">Assign courses · roster · announcements</p>
                 </Link>
-                <div className="flex shrink-0 gap-1.5">
+                <div className="flex shrink-0 flex-wrap gap-1.5">
+                  <Link href={`/teach/classrooms/${c.id}/review`} className="btn-primary px-3 py-1 text-xs">Daily review</Link>
                   <Link href={`/teach/classrooms/${c.id}/gradebook`} className="btn-ghost px-2 py-1 text-xs">📊 Grades</Link>
                   <Link href={`/teach/grade?classroomId=${c.id}`} className="btn-ghost px-2 py-1 text-xs">📸 Grade</Link>
                 </div>
