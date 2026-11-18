@@ -460,6 +460,37 @@ function VocabPanel({
   );
 }
 
+// Classify a lesson section by its heading so we can give teaching, worked
+// examples, practice and misconceptions distinct visual identities — the way
+// top learning apps separate "here's the idea" from "now you try" from
+// "watch out for this". Purely presentational; falls back to a neutral style.
+type SectionTheme = { icon: string; label: string; eyebrow: string; accent: string };
+function lessonSectionTheme(heading?: string): SectionTheme {
+  const h = (heading ?? "").toLowerCase();
+  if (/objective|warm-?up|goal|overview|intro/.test(h))
+    return { icon: "🎯", label: "Objective", eyebrow: "text-sky-600 dark:text-sky-300", accent: "border-l-sky-400/70" };
+  if (/worked|example|case|walkthrough|model/.test(h))
+    return { icon: "📘", label: "Worked example", eyebrow: "text-indigo-600 dark:text-indigo-300", accent: "border-l-indigo-400/70" };
+  if (/your turn|try|practice|exercise|apply|check yourself/.test(h))
+    return { icon: "✍️", label: "Your turn", eyebrow: "text-emerald-600 dark:text-emerald-300", accent: "border-l-emerald-400/70" };
+  if (/misconception|mistake|watch out|caution|pitfall|exit ticket|common error/.test(h))
+    return { icon: "⚠️", label: "Watch out", eyebrow: "text-amber-600 dark:text-amber-300", accent: "border-l-amber-400/70" };
+  if (/summary|recap|takeaway|key idea|remember/.test(h))
+    return { icon: "🧷", label: "Recap", eyebrow: "text-violet-600 dark:text-violet-300", accent: "border-l-violet-400/70" };
+  return { icon: "📖", label: "", eyebrow: "text-ink-500", accent: "border-l-black/10 dark:border-l-white/15" };
+}
+
+// Split a plain-text block into paragraphs on blank lines (or single newlines)
+// so dense content breathes instead of rendering as one slab. Harmless for
+// text that has no breaks — it stays a single paragraph.
+function toParagraphs(text: string): string[] {
+  const t = (text ?? "").trim();
+  if (!t) return [];
+  const byBlank = t.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+  if (byBlank.length > 1) return byBlank;
+  return t.split(/\n/).map((p) => p.trim()).filter(Boolean);
+}
+
 export function ContentLesson({
   body, title, courseId, lessonId, grammar,
 }: {
@@ -524,8 +555,12 @@ export function ContentLesson({
       </nav>}
 
       {body?.content && (
-        <article className={`card whitespace-pre-wrap leading-relaxed text-ink-700 dark:text-slate-200 ${largeText ? "text-lg" : "text-base"}`}>
-          {body.content}
+        <article className={`card leading-7 text-ink-700 dark:text-slate-200 ${largeText ? "text-lg leading-8" : "text-base"}`}>
+          <div className="max-w-[68ch] space-y-4">
+            {toParagraphs(String(body.content)).map((p, i) => (
+              <p key={i} className="whitespace-pre-wrap">{p}</p>
+            ))}
+          </div>
         </article>
       )}
 
@@ -538,12 +573,36 @@ export function ContentLesson({
         </div>
       )}
 
-      {sections.map((s, i) => (
-        <section key={i} id={`lesson-section-${i}`} className="card scroll-mt-6 space-y-3 p-5 sm:p-6">
-          {s.heading && <h2 className="font-semibold">{s.heading}</h2>}
-          <p className={`whitespace-pre-wrap leading-relaxed text-ink-700 dark:text-slate-200 ${largeText ? "text-lg" : "text-base"}`}>{s.text}</p>
-        </section>
-      ))}
+      {sections.map((s, i) => {
+        const theme = lessonSectionTheme(s.heading);
+        const paras = toParagraphs(s.text);
+        return (
+          <section
+            key={i}
+            id={`lesson-section-${i}`}
+            className={`card scroll-mt-6 space-y-3 border-l-4 p-5 sm:p-6 ${theme.accent}`}
+          >
+            {s.heading && (
+              <div className="space-y-1">
+                {theme.label && (
+                  <p className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest ${theme.eyebrow}`}>
+                    <span aria-hidden>{theme.icon}</span>
+                    {theme.label}
+                  </p>
+                )}
+                <h2 className="text-lg font-bold leading-snug">{s.heading}</h2>
+              </div>
+            )}
+            <div
+              className={`max-w-[68ch] space-y-4 leading-7 text-ink-700 dark:text-slate-200 ${largeText ? "text-lg leading-8" : "text-base"}`}
+            >
+              {paras.map((p, j) => (
+                <p key={j} className="whitespace-pre-wrap">{p}</p>
+              ))}
+            </div>
+          </section>
+        );
+      })}
 
       {body?.key_terms && Array.isArray(body.key_terms) && (
         <div className="card">
