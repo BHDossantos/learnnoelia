@@ -339,7 +339,9 @@ export default async function CoursePage(props: { params: Promise<{ courseId: st
       <div className="flex gap-5 overflow-x-auto border-b border-black/5 text-sm">
         <span className="border-b-2 border-brand-500 pb-2 font-semibold text-brand-700">Overview</span>
         <a href="#curriculum" className="pb-2 text-ink-500 hover:text-ink-900">Curriculum</a>
-        <Link href="/practice" className="pb-2 text-ink-500 hover:text-ink-900">Practice</Link>
+        {(!course.school || course.school === "language") && (
+          <Link href="/practice" className="pb-2 text-ink-500 hover:text-ink-900">Practice</Link>
+        )}
         <Link href="/profile" className="pb-2 text-ink-500 hover:text-ink-900">Progress</Link>
         <Link href="/notes" className="pb-2 text-ink-500 hover:text-ink-900">Notes</Link>
         <Link href="/coach" className="pb-2 text-ink-500 hover:text-ink-900">Tutor</Link>

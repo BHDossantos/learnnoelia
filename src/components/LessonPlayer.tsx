@@ -84,7 +84,7 @@ function lessonNumber(modules: ModuleGroup[], lessonId: string): string | null {
 
 export function LessonPlayer({
   lesson, courseId, language, dialect, outline = [], courseTitle = "", streakDays = null,
-  nudgeVariant = null,
+  nudgeVariant = null, school = null,
 }: {
   lesson: Lesson;
   courseId: string;
@@ -94,7 +94,9 @@ export function LessonPlayer({
   courseTitle?: string;
   streakDays?: number | null;
   nudgeVariant?: string | null;
+  school?: string | null;
 }) {
+  const isLanguageCourse = school === "language";
   const [focusMode, setFocusMode] = useState(lesson.kind === "reading");
   let content: React.ReactNode;
   if (lesson.kind === "vocab") {
@@ -261,6 +263,7 @@ export function LessonPlayer({
             </span>
           </div>
         )}
+        {isLanguageCourse && lesson.kind !== "reading" && <nav aria-label="Language practice" className="mb-4 flex gap-5 text-sm"><a href="/practice">Speak & practice</a><a href="/review?mode=daily">Scheduled vocabulary review</a></nav>}
         {/* Module-relative numbering kicker; inner components render the title. */}
         {!isQuiz && lessonNo && (
           <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-brand-600">
@@ -451,6 +454,37 @@ function VocabPanel({
       )}
     </div>
   );
+}
+
+// Classify a lesson section by its heading so we can give teaching, worked
+// examples, practice and misconceptions distinct visual identities — the way
+// top learning apps separate "here's the idea" from "now you try" from
+// "watch out for this". Purely presentational; falls back to a neutral style.
+type SectionTheme = { icon: string; label: string; eyebrow: string; accent: string };
+function lessonSectionTheme(heading?: string): SectionTheme {
+  const h = (heading ?? "").toLowerCase();
+  if (/objective|warm-?up|goal|overview|intro/.test(h))
+    return { icon: "🎯", label: "Objective", eyebrow: "text-sky-600 dark:text-sky-300", accent: "border-l-sky-400/70" };
+  if (/worked|example|case|walkthrough|model/.test(h))
+    return { icon: "📘", label: "Worked example", eyebrow: "text-indigo-600 dark:text-indigo-300", accent: "border-l-indigo-400/70" };
+  if (/your turn|try|practice|exercise|apply|check yourself/.test(h))
+    return { icon: "✍️", label: "Your turn", eyebrow: "text-emerald-600 dark:text-emerald-300", accent: "border-l-emerald-400/70" };
+  if (/misconception|mistake|watch out|caution|pitfall|exit ticket|common error/.test(h))
+    return { icon: "⚠️", label: "Watch out", eyebrow: "text-amber-600 dark:text-amber-300", accent: "border-l-amber-400/70" };
+  if (/summary|recap|takeaway|key idea|remember/.test(h))
+    return { icon: "🧷", label: "Recap", eyebrow: "text-violet-600 dark:text-violet-300", accent: "border-l-violet-400/70" };
+  return { icon: "📖", label: "", eyebrow: "text-ink-500", accent: "border-l-black/10 dark:border-l-white/15" };
+}
+
+// Split a plain-text block into paragraphs on blank lines (or single newlines)
+// so dense content breathes instead of rendering as one slab. Harmless for
+// text that has no breaks — it stays a single paragraph.
+function toParagraphs(text: string): string[] {
+  const t = (text ?? "").trim();
+  if (!t) return [];
+  const byBlank = t.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+  if (byBlank.length > 1) return byBlank;
+  return t.split(/\n/).map((p) => p.trim()).filter(Boolean);
 }
 
 export function ContentLesson({
