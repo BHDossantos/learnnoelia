@@ -18,7 +18,7 @@ export default async function LessonPage(
       supabase.from("lessons").select("*").eq("id", params.lessonId).eq("course_id", params.courseId).single(),
       supabase
         .from("courses")
-        .select("title,language,dialect")
+        .select("title,language,dialect,school")
         .eq("id", params.courseId)
         .single(),
       supabase
@@ -63,6 +63,7 @@ export default async function LessonPage(
       courseId={params.courseId}
       language={course.language}
       dialect={course.dialect}
+      school={(course as { school?: string }).school ?? null}
       outline={outline}
       courseTitle={course.title}
       streakDays={stats?.streak_days ?? 0}

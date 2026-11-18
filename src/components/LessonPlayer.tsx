@@ -83,7 +83,7 @@ function lessonNumber(modules: ModuleGroup[], lessonId: string): string | null {
 
 export function LessonPlayer({
   lesson, courseId, language, dialect, outline = [], courseTitle = "", streakDays = null,
-  nudgeVariant = null,
+  nudgeVariant = null, school = null,
 }: {
   lesson: Lesson;
   courseId: string;
@@ -93,7 +93,13 @@ export function LessonPlayer({
   courseTitle?: string;
   streakDays?: number | null;
   nudgeVariant?: string | null;
+  school?: string | null;
 }) {
+  // Practice / Speak / Review are language-product tools (conversation practice,
+  // pronunciation, vocab SRS). On non-language courses they point nowhere
+  // sensible, so we only offer them for language courses. Unknown/legacy courses
+  // (no school) keep the language behavior.
+  const isLanguageCourse = !school || school === "language";
   const [focusMode, setFocusMode] = useState(false);
   let content: React.ReactNode;
   if (lesson.kind === "vocab") {
@@ -264,9 +270,13 @@ export function LessonPlayer({
             the others deep-link to the matching experience. */}
         <div className="mb-4 hidden gap-5 border-b border-black/5 text-sm lg:flex">
           <span className="border-b-2 border-brand-500 pb-2 font-semibold text-brand-700">Learn</span>
-          <a href="/practice" className="pb-2 text-ink-500 hover:text-ink-900">Practice</a>
-          <a href="/practice" className="pb-2 text-ink-500 hover:text-ink-900">Speak</a>
-          <a href="/review" className="pb-2 text-ink-500 hover:text-ink-900">Review</a>
+          {isLanguageCourse && (
+            <>
+              <a href="/practice" className="pb-2 text-ink-500 hover:text-ink-900">Practice</a>
+              <a href="/practice" className="pb-2 text-ink-500 hover:text-ink-900">Speak</a>
+              <a href="/review" className="pb-2 text-ink-500 hover:text-ink-900">Review</a>
+            </>
+          )}
         </div>
         {/* Module-relative numbering kicker; inner components render the title. */}
         {!isQuiz && lessonNo && (
