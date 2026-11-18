@@ -1,3 +1,4 @@
+import { PaperMarkings } from "@/components/PaperMarkings";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireOnboardedUser } from "@/lib/auth";
@@ -17,7 +18,7 @@ export default async function PaperPage(props: { params: Promise<{ id: string }>
 
   const { data: paper } = await supabase
     .from("paper_gradings")
-    .select("id,title,subject,source,score,max_score,feedback_md,focus_areas,plan_md,created_at,student_id,student:profiles!paper_gradings_student_id_fkey(display_name)")
+    .select("id,title,subject,source,score,max_score,annotations,feedback_md,focus_areas,plan_md,created_at,student_id,student:profiles!paper_gradings_student_id_fkey(display_name)")
     .eq("id", id)
     .maybeSingle();
   if (!paper) notFound();
@@ -55,6 +56,8 @@ export default async function PaperPage(props: { params: Promise<{ id: string }>
       </header>
 
       {canShare && <PaperActions paperId={paper.id as string} />}
+
+      <PaperMarkings annotations={paper.annotations} />
 
       {focus.length > 0 && (
         <section className="card">
