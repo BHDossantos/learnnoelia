@@ -30,7 +30,7 @@ export function SessionRoom({
   const intervalRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (status !== "live") return;
+    if (status !== "live" || !token) return;
     let stopped = false;
     async function tick() {
       const res = await fetch("/api/tutor-sessions/heartbeat", {
@@ -51,7 +51,7 @@ export function SessionRoom({
       stopped = true;
       if (intervalRef.current) window.clearInterval(intervalRef.current);
     };
-  }, [sessionId, status]);
+  }, [sessionId, status, token]);
 
   async function end() {
     setEnding(true);
@@ -122,7 +122,7 @@ export function SessionRoom({
         <div className="card text-sm text-ink-500">
           {status === "ended"
             ? "Session ended."
-            : "Video unavailable — set LIVEKIT_* env vars."}
+            : "Joining is unavailable until payment authorization, tutor acceptance, and video access are verified. Refresh to retry; contact support if this continues."}
         </div>
       )}
 

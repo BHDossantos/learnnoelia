@@ -1,5 +1,6 @@
 import { supabaseServer } from "@/lib/supabase/server";
 import { mintLivekitToken } from "@/lib/livekit";
+import { canJoinTutorRoom } from "@/lib/tutor-room-access";
 import { SessionRoom } from "./SessionRoom";
 
 export const dynamic = "force-dynamic";
@@ -16,10 +17,10 @@ export default async function SessionPage(
 
   const { data: s } = await supabase
     .from("tutor_sessions")
-    .select("id,status,livekit_room,started_at,minutes_billed,cents_charged,max_budget_cents,tutor_id,student_id")
+    .select("*")
     .eq("id", params.sessionId)
     .single();
-  if (!s) return <p>Session not found.</p>;
+  if (!s || s.tutor_id !== params.tutorId) return <p>Session not found.</p>;
   if (s.student_id !== user.id && s.tutor_id !== user.id) {
     return <p>Forbidden.</p>;
   }
@@ -28,7 +29,9 @@ export default async function SessionPage(
     .from("tutors").select("display_name,rate_cents_per_minute").eq("id", s.tutor_id).single();
 
   let token: string | null = null;
-  if (s.status === "live" && s.livekit_room && process.env.LIVEKIT_API_KEY) {
+  if (s.status === "live" && s.livekit_room && process.env.LIVEKIT_API_KEY &&
+      process.env.LIVEKIT_API_SECRET && process.env.NEXT_PUBLIC_LIVEKIT_URL &&
+      await canJoinTutorRoom(s)) {
     token = await mintLivekitToken({
       identity: user.id,
       name: user.user_metadata?.display_name ?? "Participant",

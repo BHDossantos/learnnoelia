@@ -1,0 +1,21 @@
+import {beforeEach,afterEach,it,expect,vi} from 'vitest';
+const m=vi.hoisted(()=>({auth:vi.fn(),single:vi.fn(),access:vi.fn(),mint:vi.fn()}));
+vi.mock('@/lib/supabase/server',()=>({supabaseServer:async()=>({auth:{getUser:m.auth},from:()=>({select:()=>({eq:()=>({single:m.single})})})})}));
+vi.mock('@/lib/tutor-room-access',()=>({canJoinTutorRoom:m.access}));
+vi.mock('@/lib/livekit',()=>({mintLivekitToken:m.mint}));
+vi.mock('./SessionRoom',()=>({SessionRoom:()=>null}));
+import Page from './page';
+afterEach(()=>vi.unstubAllEnvs());
+const s={id:'s',student_id:'student',tutor_id:'tutor',status:'live',livekit_room:'room',max_budget_cents:1500};
+const page=()=>Page({params:Promise.resolve({tutorId:'tutor',sessionId:'s'})});
+beforeEach(()=>{
+ vi.resetAllMocks();vi.stubEnv('LIVEKIT_API_KEY','test');vi.stubEnv('LIVEKIT_API_SECRET','test');vi.stubEnv('NEXT_PUBLIC_LIVEKIT_URL','wss://example.test');
+ m.auth.mockResolvedValue({data:{user:{id:'student',user_metadata:{}}}});
+ m.single.mockResolvedValueOnce({data:s}).mockResolvedValue({data:{display_name:'Tutor',rate_cents_per_minute:50}});
+ m.access.mockResolvedValue(false);m.mint.mockResolvedValue('token');
+});
+it('does not mint a token for an unverified live session',async()=>{await page();expect(m.access).toHaveBeenCalledWith(s);expect(m.mint).not.toHaveBeenCalled();});
+it('mints only after server verification',async()=>{m.access.mockResolvedValue(true);await page();expect(m.mint).toHaveBeenCalledWith({identity:'student',name:'Participant',room:'room'});});
+it('rejects a different tutor URL before provider access',async()=>{await Page({params:Promise.resolve({tutorId:'other',sessionId:'s'})});expect(m.access).not.toHaveBeenCalled();expect(m.mint).not.toHaveBeenCalled();});
+it('rejects a nonparticipant before provider access',async()=>{m.auth.mockResolvedValue({data:{user:{id:'outsider'}}});await page();expect(m.access).not.toHaveBeenCalled();expect(m.mint).not.toHaveBeenCalled();});
+it('does not mint a token when video configuration is incomplete',async()=>{vi.stubEnv('LIVEKIT_API_SECRET','');m.access.mockResolvedValue(true);await page();expect(m.mint).not.toHaveBeenCalled();});
