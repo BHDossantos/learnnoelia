@@ -5,7 +5,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 // The app is a live Next.js site, so the native apps load the hosted production
 // build (server.url) rather than a static export — everything (SSR, Supabase
 // auth, LiveKit, checkout) keeps working exactly as on the web, and every deploy
-// updates the apps instantly with no store review. See docs/MOBILE_APP.md.
+// updates hosted content; native releases still need device and store review. See docs/MOBILE_APP.md.
 //
 // To point the shell at a staging/preview build, override CAP_SERVER_URL before
 // `npx cap sync`.
@@ -20,7 +20,8 @@ const config: CapacitorConfig = {
   server: {
     url: SERVER_URL,
     androidScheme: "https",
-    iosScheme: "https",
+    iosScheme: "capacitor",
+    errorPath: "index.html",
   },
   // A UA token both the client and server can detect synchronously, so we can
   // hide in-app purchase CTAs when running inside the native shell (required by

@@ -7,23 +7,37 @@
     <style>
       html, body { margin: 0; height: 100%; background: #0e1022; color: #fff;
         font-family: -apple-system, system-ui, sans-serif; }
-      .wrap { height: 100%; display: grid; place-items: center; text-align: center; padding: 24px; }
+      .wrap { box-sizing: border-box; min-height: 100%; display: grid; place-items: center; text-align: center; padding: 24px; }
       .logo { width: 64px; height: 64px; border-radius: 18px; display: grid; place-items: center;
         font-weight: 800; font-size: 32px; margin: 0 auto 16px;
         background: linear-gradient(135deg, #3b6cf6, #8b5cf6); }
-      a { color: #8ab4ff; }
+      a { color: #fff; display: inline-block; background: #3459e6; padding: 14px 24px; border-radius: 12px; text-decoration: none; font-weight: 600; }
+      a:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
+      p { line-height: 1.6; max-width: 32rem; }
+      .wrap { padding-top: max(24px, env(safe-area-inset-top)); padding-bottom: max(24px, env(safe-area-inset-bottom)); }
     </style>
   </head>
   <body>
     <!-- Offline fallback only. In normal use the native shell loads
          https://learnnoelia.com (see capacitor.config.ts). -->
-    <div class="wrap">
+    <main class="wrap">
       <div>
         <div class="logo">N</div>
-        <h1>LearnNoelia</h1>
-        <p>You appear to be offline. Reconnect to continue learning.</p>
-        <p><a href="https://learnnoelia.com">Open learnnoelia.com</a></p>
+        <h1>Let’s get you reconnected</h1>
+        <p>LearnNoelia could not load. Check your connection, then try again. Your saved learning progress stays in your account.</p>
+        <p id="connection" role="status" aria-live="polite"></p>
+        <p><a href="https://learnnoelia.com">Try again</a></p>
       </div>
-    </div>
+    </main>
+    <script>
+      function showConnection() {
+        document.getElementById('connection').textContent = navigator.onLine
+          ? 'A connection is available. Tap Try again to reopen LearnNoelia.'
+          : 'Your device is offline. Connect to Wi-Fi or mobile data.';
+      }
+      window.addEventListener('online', showConnection);
+      window.addEventListener('offline', showConnection);
+      showConnection();
+    </script>
   </body>
 </html>

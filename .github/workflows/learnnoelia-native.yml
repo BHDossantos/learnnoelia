@@ -7,6 +7,7 @@ on:
     paths:
       - 'capacitor.config.ts'
       - 'mobile/**'
+      - 'scripts/mobile/**'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/learnnoelia-native.yml'
@@ -15,6 +16,7 @@ on:
     paths:
       - 'capacitor.config.ts'
       - 'mobile/**'
+      - 'scripts/mobile/**'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/learnnoelia-native.yml'
@@ -44,6 +46,9 @@ jobs:
       - run: npm ci
       - run: npx cap add android
       - run: npx cap sync android
+      - run: python3 scripts/mobile/prepare.py android
+      - name: Generate branded Android assets
+        run: npx @capacitor/assets@3 generate --android --assetPath assets --iconBackgroundColor '#0e1022' --iconBackgroundColorDark '#0e1022' --splashBackgroundColor '#0e1022' --splashBackgroundColorDark '#0e1022'
       - name: Compile debug APK and unsigned release bundle
         working-directory: android
         run: ./gradlew --no-daemon :app:assembleDebug :app:bundleRelease :app:lintDebug
@@ -76,6 +81,9 @@ jobs:
       - run: npm ci
       - run: npx cap add ios
       - run: npx cap sync ios
+      - run: python3 scripts/mobile/prepare.py ios
+      - name: Generate branded iOS assets
+        run: npx @capacitor/assets@3 generate --ios --assetPath assets --iconBackgroundColor '#0e1022' --splashBackgroundColor '#0e1022' --splashBackgroundColorDark '#0e1022'
       # Capacitor 8 generates a Swift Package Manager project by default.
       # There is no Podfile, so do not run pod install here.
       - name: Compile iOS simulator app without signing
