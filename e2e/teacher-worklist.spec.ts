@@ -40,6 +40,24 @@ test('teacher daily review uses real status and opens prepared feedback and pape
   await expect(page.getByRole('heading',{name:'Question-by-question markings'})).toBeVisible();
   await expect(page.getByLabel('Marked incorrect')).toBeVisible();
   await expect(page.getByText('Use an untreated comparison.',{exact:false})).toBeVisible();
+  // Regression for the reported single-paper PDF upload. Provider is stubbed:
+  // this checks browser transport and result display, not model accuracy.
+  await page.goto('/teach/grade');
+  await page.getByRole('button',{name:'Single paper',exact:true}).click();
+  await page.locator('input[type=file]').setInputFiles('e2e/files/biology-grading-test.pdf');
+  await expect(page.getByText('PDF ready to grade',{exact:true})).toBeVisible();
+  await expect(page.getByAltText('Uploaded paper')).toHaveCount(0);
+  let uploaded=false;
+  await page.route('**/api/grade/paper',async route=>{
+   const body=route.request().postDataJSON();
+   expect(body.document.media_type).toBe('application/pdf');
+   expect(Buffer.from(body.document.data,'base64').subarray(0,5).toString()).toBe('%PDF-');
+   expect(body.image).toBeUndefined();uploaded=true;
+   await route.fulfill({json:{id:paper,grade:{score:50,max_score:100,summary_md:'Five correct answers; five incorrect answers.'}}});
+  });
+  await page.getByRole('button',{name:'Grade & notify',exact:true}).click();
+  await expect(page.getByText('50/100',{exact:true})).toBeVisible();
+  expect(uploaded).toBe(true);
   await page.goto(`/teach/classrooms/${randomUUID()}/review`);await expect(page.getByText(/could not be found|not found/i).first()).toBeVisible();
  }finally{await admin.from('courses').delete().eq('id',course);await admin.from('organizations').delete().eq('id',org);await admin.auth.admin.deleteUser(student);}
 });

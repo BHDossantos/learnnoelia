@@ -14,21 +14,29 @@ export function PaperGrader({ students }: { students: Student[] }) {
   const [maxScore, setMaxScore] = useState(100);
   const [answerKey, setAnswerKey] = useState("");
   const [text, setText] = useState("");
-  const [image, setImage] = useState<{ media_type: string; data: string; preview: string } | null>(null);
+  const [image, setImage] = useState<{ media_type: string; data: string; preview: string; name: string } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState<null | "offline" | "error">(null);
+  const [status, setStatus] = useState<null | "error">(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [result, setResult] = useState<any>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   async function onFile(file: File) {
+    setStatus(null); setErrorMsg(""); setImage(null);
+    if (!["application/pdf", "image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
+      setStatus("error"); setErrorMsg("Choose a PDF, JPEG, PNG, WebP, or GIF. For PowerPoint, use Bulk upload."); return;
+    }
+    if (!file.size || file.size > 3 * 1024 * 1024) {
+      setStatus("error"); setErrorMsg("Choose a non-empty file up to 3 MB. Compress larger PDFs or upload fewer pages."); return;
+    }
     const reader = new FileReader();
+    reader.onerror = () => { setStatus("error"); setErrorMsg("Could not read this file. Please select it again."); };
     reader.onload = () => {
       const url = String(reader.result);
       const data = url.split(",")[1] ?? "";
       const media_type = (url.match(/^data:(.*?);/)?.[1] ?? file.type) || "image/jpeg";
-      setImage({ media_type, data, preview: url });
+      setImage({ media_type, data, preview: url, name: file.name });
     };
     reader.readAsDataURL(file);
   }
@@ -47,11 +55,11 @@ export function PaperGrader({ students }: { students: Student[] }) {
           maxScore,
           answerKey: answerKey.trim() || undefined,
           text: text.trim() || undefined,
-          image: image ? { media_type: image.media_type, data: image.data } : undefined,
+          image: image && image.media_type !== "application/pdf" ? { media_type: image.media_type, data: image.data } : undefined,
+          document: image?.media_type === "application/pdf" ? { media_type: "application/pdf", data: image.data } : undefined,
         }),
       });
-      if (res.status === 503) { setStatus("offline"); return; }
-      const data = await res.json();
+      const data = await res.json().catch(() => ({ error: res.status === 413 ? "This upload is too large. Please use a smaller file." : "The grading service did not respond. Please try again; your paper is still selected." }));
       if (!res.ok) { setStatus("error"); setErrorMsg(typeof data.error === "string" ? data.error : "Grading failed."); return; }
       setResult(data.grade);
       setSavedId(data.id);
@@ -99,12 +107,16 @@ export function PaperGrader({ students }: { students: Student[] }) {
       </div>
 
       <div className="card space-y-3">
-        <p className="text-sm font-semibold">Scan or photograph the work (paper, whiteboard, even a napkin)</p>
-        <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} className="block w-full text-sm" />
+        <p className="text-sm font-semibold">Upload a PDF or photograph of the work (up to 3 MB)</p>
+        <input ref={fileRef} type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/gif" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} className="block w-full text-sm" />
         {image && (
           <div className="flex items-center gap-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={image.preview} alt="Uploaded paper" className="h-24 rounded-lg border border-black/10" />
+            {image.media_type === "application/pdf" ? (
+              <div className="rounded-lg border border-brand-200 bg-brand-50 p-4 text-sm"><strong>PDF ready to grade</strong><p>{image.name}</p></div>
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={image.preview} alt="Uploaded paper" className="h-24 rounded-lg border border-black/10" />
+            )}
             <button onClick={() => { setImage(null); if (fileRef.current) fileRef.current.value = ""; }} className="btn-ghost text-xs">Remove</button>
           </div>
         )}
@@ -119,12 +131,7 @@ export function PaperGrader({ students }: { students: Student[] }) {
         <span className="text-xs text-ink-500">The student, their teachers, and their parents are notified automatically.</span>
       </div>
 
-      {status === "offline" && (
-        <div className="card border border-amber-200 bg-amber-50 text-sm text-amber-800">
-          Automatic grading isn&apos;t switched on yet — it activates when the system goes live.
-        </div>
-      )}
-      {status === "error" && <div className="card border border-red-200 bg-red-50 text-sm text-red-700">{errorMsg}</div>}
+      {status === "error" && <div role="alert" className="card border border-red-200 bg-red-50 text-sm text-red-700">{errorMsg}</div>}
 
       {result && (
         <div className="card space-y-3 border-brand-500/30">
