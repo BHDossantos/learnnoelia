@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
+import { courseIcon } from "@/lib/courseIcon";
 export type CatalogTopic = { id: string; title: string; description: string | null; cefr_level: string | null; goal_tag: string | null; total: number; done: number; minutes: number; nextId: string | null };
 export function TopicCatalog({ topics, icon, accent = "bg-brand-50" }: { topics: CatalogTopic[]; icon: string; accent?: string }) {
   const [query, setQuery] = useState("");
@@ -20,7 +21,7 @@ export function TopicCatalog({ topics, icon, accent = "bg-brand-50" }: { topics:
     <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{visible.map(t => {
       const pct=t.total ? Math.round(t.done/t.total*100) : 0;
       return <li key={t.id} className="card flex flex-col overflow-hidden p-0 transition hover:-translate-y-0.5 hover:border-brand-500/40 hover:shadow-md">
-        <div className="flex items-center justify-between border-b border-black/5 bg-gradient-to-br from-brand-50 to-violet-50 p-4 dark:from-brand-500/20 dark:to-violet-500/10"><span aria-hidden="true" className={`grid h-11 w-11 place-items-center rounded-xl text-3xl ${accent}`}>{icon}</span><span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-ink-700">{t.cefr_level ?? "Self-paced"}</span></div>
+        <div className="flex items-center justify-between border-b border-black/5 bg-gradient-to-br from-brand-50 to-violet-50 p-4 dark:from-brand-500/20 dark:to-violet-500/10"><span aria-hidden="true" className={`grid h-14 w-14 place-items-center rounded-2xl text-4xl shadow-sm ${accent}`}>{courseIcon(t.title, icon)}</span><span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-ink-700">{t.cefr_level ?? "Self-paced"}</span></div>
         <div className="flex flex-1 flex-col p-5"><Link href={`/learn/${t.id}`} className="text-lg font-bold leading-snug hover:text-brand-600">{t.title}</Link><p className="mt-2 line-clamp-3 text-sm leading-relaxed text-ink-500">{t.description}</p>
           {t.goal_tag && <p className="mt-3 text-xs font-medium text-brand-700 dark:text-blue-300">{t.goal_tag.replace(/_/g," ")}</p>}
           <div className="mt-auto pt-5"><div className="flex justify-between text-xs text-ink-500"><span>{t.done}/{t.total} lessons</span><span>{pct}% completed</span></div><progress value={t.done} max={Math.max(1,t.total)} aria-label={t.title+" completion"} className="mt-2 h-1.5 w-full accent-blue-600" />
