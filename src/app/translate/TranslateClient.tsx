@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { LANGUAGES, type LanguageCode } from "@/lib/languages";
 
 type Result = {
@@ -20,9 +20,20 @@ export function TranslateClient({
   const [listening, setListening] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
+  const request = useRef(0);
+  function invalidate() { request.current++; setResult(null); setNotice(null); setLoading(false); }
+  function swap() {
+    const detected = source === "auto" ? result?.detectedSource : source;
+    if (!detected || !Object.hasOwn(LANGUAGES, detected)) return;
+    const translated = result?.translation;
+    invalidate(); setSource(target); setTarget(detected as LanguageCode);
+    if (translated) setText(translated);
+  }
+
   async function translate() {
     if (!text.trim()) return;
-    setLoading(true);
+    const current = ++request.current;
+    setLoading(true); setResult(null); setNotice(null);
     try {
       const res = await fetch("/api/translate", {
         method: "POST",
@@ -30,6 +41,7 @@ export function TranslateClient({
         body: JSON.stringify({ text, source, target }),
       });
       const data = await res.json().catch(() => ({}));
+      if (current !== request.current) return;
       if (!res.ok) {
         setNotice(
           data.offline
@@ -41,8 +53,10 @@ export function TranslateClient({
       }
       setNotice(null);
       setResult(data);
+    } catch {
+      if (current === request.current) setNotice("Could not connect. Your text is still here — please try again.");
     } finally {
-      setLoading(false);
+      if (current === request.current) setLoading(false);
     }
   }
 
@@ -64,7 +78,7 @@ export function TranslateClient({
     rec.lang = source === "auto" ? "en-US" : source;
     rec.interimResults = false;
     rec.onresult = (e: any) => {
-      setText(e.results[0][0].transcript);
+      invalidate(); setText(e.results[0][0].transcript);
       setListening(false);
     };
     rec.onerror = () => setListening(false);
@@ -80,13 +94,14 @@ export function TranslateClient({
         Voice or text. Each translation feeds your learner model — words you look up resurface in lessons.
       </p>
       {notice && (
-        <p className="card border-amber-200 bg-amber-50 text-sm text-amber-800">{notice}</p>
+        <p role="status" className="card border-amber-200 bg-amber-50 text-sm text-amber-800">{notice}</p>
       )}
 
       <div className="grid grid-cols-2 gap-2">
         <select
+          aria-label="Source language"
           value={source}
-          onChange={(e) => setSource(e.target.value as LanguageCode | "auto")}
+          onChange={(e) => { invalidate(); setSource(e.target.value as LanguageCode | "auto"); }}
           className="rounded-xl border border-black/10 bg-white px-3 py-2"
         >
           <option value="auto">Detect</option>
@@ -95,8 +110,9 @@ export function TranslateClient({
           ))}
         </select>
         <select
+          aria-label="Target language"
           value={target}
-          onChange={(e) => setTarget(e.target.value as LanguageCode)}
+          onChange={(e) => { invalidate(); setTarget(e.target.value as LanguageCode); }}
           className="rounded-xl border border-black/10 bg-white px-3 py-2"
         >
           {Object.entries(LANGUAGES).map(([c, l]) => (
@@ -105,9 +121,12 @@ export function TranslateClient({
         </select>
       </div>
 
+      <button type="button" className="btn-ghost" disabled={loading || (source === "auto" && !Object.hasOwn(LANGUAGES, result?.detectedSource ?? ""))} onClick={swap}>Swap languages</button>
+
       <textarea
+        aria-label="Text to translate"
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => { invalidate(); setText(e.target.value); }}
         rows={4}
         placeholder="Type or speak…"
         className="w-full rounded-xl border border-black/10 bg-white p-3"
@@ -117,7 +136,7 @@ export function TranslateClient({
         <button onClick={startVoice} className="btn-ghost flex-1">
           {listening ? "Listening…" : "🎙️ Speak"}
         </button>
-        <button onClick={translate} disabled={loading} className="btn-primary flex-1">
+        <button onClick={translate} disabled={loading || !text.trim()} className="btn-primary flex-1">
           {loading ? "…" : "Translate"}
         </button>
       </div>
@@ -127,7 +146,7 @@ export function TranslateClient({
           <div className="flex items-start justify-between gap-3">
             <p className="text-lg">{result.translation}</p>
             <div className="flex gap-1">
-              <button onClick={() => speak(result.translation)} className="btn-ghost px-3 py-1 text-sm">
+              <button aria-label="Listen to translation" onClick={() => speak(result.translation)} className="btn-ghost px-3 py-1 text-sm">
                 🔊
               </button>
               <button
