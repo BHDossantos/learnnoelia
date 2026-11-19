@@ -185,7 +185,10 @@ export async function createAssignment(formData: FormData) {
 
 const ReviewInput = z.object({
   submissionId: z.string().guid(),
-  finalScore: z.coerce.number().min(0).max(10000),
+  // A missing/blank form field must not silently become a failing zero grade.
+  // Accept only explicit text from the number input, then validate its value.
+  finalScore: z.string().trim().min(1, "Enter a final score before returning the work.")
+    .transform(Number).pipe(z.number().min(0).max(10000)),
   comments: z.string().max(8000).optional(),
   approvedAi: z.coerce.boolean(),
 });
