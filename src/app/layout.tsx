@@ -149,9 +149,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <main id="main" className="min-h-screen px-4 pb-24 pt-6 lg:pl-64 lg:pr-8 lg:pb-10">
           <div className="mx-auto max-w-screen-sm lg:max-w-4xl">
             {/* Mobile top bar — the desktop sidebar replaces it at lg+ */}
-            <div className="mb-4 flex items-center justify-between lg:hidden">
+            <div className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center lg:hidden">
               <Logo />
-              <div className="flex items-center gap-3 text-xs text-ink-500">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-ink-500">
                 <Link href="/inbox" className="hover:text-brand-500">{nav.inbox}</Link>
                 <Link href="/grades" className="hover:text-brand-500">{nav.grades}</Link>
                 <Link href="/family" className="hover:text-brand-500">{nav.family}</Link>

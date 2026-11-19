@@ -1,0 +1,9 @@
+'use client';
+import Link from 'next/link';
+import {useState} from 'react';
+import {CourseCover} from './CourseCover';
+export function CourseAssessmentCatalog({courses,mode="assessments"}:{mode?:"assessments"|"flashcards";courses:{id:string;title:string;school:string|null}[]}){
+ const [query,setQuery]=useState('');const [limit,setLimit]=useState(12);
+ const visible=courses.filter(c=>`${c.title} ${c.school??''}`.toLowerCase().includes(query.toLowerCase()));
+ return <section className="space-y-4"><h2 className="text-xl font-bold">{mode==="flashcards"?"Choose a flashcard topic":"Course exams and quizzes"}</h2><p className="text-sm text-ink-500">{mode==="flashcards"?"Review the terms and questions from the subject you are studying.":"Choose a course to see its four exam stages and twelve quiz slots. Availability depends on its authored question bank."}</p><label className="block text-sm font-semibold">Find a course<input type="search" value={query} onChange={e=>{setQuery(e.target.value);setLimit(12);}} className="mt-2 w-full rounded-xl border bg-transparent p-3" placeholder="Biology, mathematics, Spanish…"/></label><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{visible.slice(0,limit).map(c=><Link key={c.id} href={mode==="flashcards"?`/review?course=${c.id}`:`/assessments/course/${c.id}`} className="overflow-hidden rounded-2xl border border-black/10 bg-white dark:bg-white/5"><CourseCover title={c.title} school={c.school??''} className="h-32"/><div className="p-4"><h3 className="font-semibold">{c.title}</h3><p className="mt-2 text-sm text-brand-600">{mode==="flashcards"?"Open topic flashcards →":"View exams and quizzes →"}</p></div></Link>)}</div>{!visible.length&&<p role="status">No matching courses. Try another search.</p>}{visible.length>limit&&<button className="btn-ghost" onClick={()=>setLimit(limit+12)}>Show more courses</button>}</section>;
+}

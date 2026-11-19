@@ -1,4 +1,5 @@
 "use client";
+import { ReadingJourney } from "@/components/learning/ReadingJourney";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { rateCardAction, completeLessonAction, logQuizAnswer, recordTestResultAction } from "@/app/learn/[courseId]/[lessonId]/actions";
@@ -83,7 +84,7 @@ function lessonNumber(modules: ModuleGroup[], lessonId: string): string | null {
 
 export function LessonPlayer({
   lesson, courseId, language, dialect, outline = [], courseTitle = "", streakDays = null,
-  nudgeVariant = null,
+  nudgeVariant = null, school = null,
 }: {
   lesson: Lesson;
   courseId: string;
@@ -93,7 +94,10 @@ export function LessonPlayer({
   courseTitle?: string;
   streakDays?: number | null;
   nudgeVariant?: string | null;
+  school?: string | null;
 }) {
+  const isLanguageCourse = school === "language";
+  const [focusMode, setFocusMode] = useState(lesson.kind === "reading");
   let content: React.ReactNode;
   if (lesson.kind === "vocab") {
     content = (
@@ -210,7 +214,7 @@ export function LessonPlayer({
   // Desktop three-zone layout at lg+; below lg the sidebars are hidden and
   // the single-column experience is untouched. Grid templates are written as
   // full literal class strings so Tailwind's JIT picks them up.
-  const gridCols =
+  const gridCols = focusMode ? "lg:grid-cols-1" :
     hasOutline && hasVocabPanel
       ? "lg:grid-cols-[240px_minmax(0,1fr)_280px]"
       : hasOutline
@@ -219,7 +223,7 @@ export function LessonPlayer({
 
   return (
     <div className={`lg:grid lg:items-start lg:gap-6 ${gridCols}`}>
-      {hasOutline && (
+      {hasOutline && !focusMode && (
         <aside className="hidden lg:sticky lg:top-4 lg:block">
           <CourseOutline
             outline={outline}
@@ -230,7 +234,15 @@ export function LessonPlayer({
           />
         </aside>
       )}
-      <div className="min-w-0">
+      <div className={`min-w-0 ${focusMode ? "mx-auto w-full max-w-3xl" : ""}`}>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-black/5 bg-white/80 p-3 dark:bg-white/5">
+          <Link href={`/learn/${courseId}`} className="text-sm font-medium text-brand-600">Topic overview</Link>
+          <button type="button" aria-pressed={focusMode} onClick={() => setFocusMode(!focusMode)} className="rounded-lg border border-brand-500/20 px-3 py-2 text-sm font-medium">{focusMode ? "Show study panels" : "Focus mode"}</button>
+        </div>
+        {hasOutline && <details className={`mb-4 rounded-xl border border-black/10 p-3 ${focusMode ? "" : "lg:hidden"}`}>
+          <summary className="cursor-pointer text-sm font-semibold">Course contents · lesson {currentIdx + 1} of {outline.length}</summary>
+          <div className="mt-3"><CourseOutline outline={outline} modules={modules} courseId={courseId} courseTitle={courseTitle} currentLessonId={lesson.id} /></div>
+        </details>}
         {/* Top bar (content view): back link + course title, estimated time.
             Quiz lessons render their own assessment top bar instead. */}
         {!isQuiz && (
@@ -251,14 +263,7 @@ export function LessonPlayer({
             </span>
           </div>
         )}
-        {/* Lesson mode tabs (per the product design): Learn is this page;
-            the others deep-link to the matching experience. */}
-        <div className="mb-4 hidden gap-5 border-b border-black/5 text-sm lg:flex">
-          <span className="border-b-2 border-brand-500 pb-2 font-semibold text-brand-700">Learn</span>
-          <a href="/practice" className="pb-2 text-ink-500 hover:text-ink-900">Practice</a>
-          <a href="/practice" className="pb-2 text-ink-500 hover:text-ink-900">Speak</a>
-          <a href="/review" className="pb-2 text-ink-500 hover:text-ink-900">Review</a>
-        </div>
+        {isLanguageCourse && lesson.kind !== "reading" && <nav aria-label="Language practice" className="mb-4 flex gap-5 text-sm"><a href="/practice">Speak & practice</a><a href="/review?mode=daily">Scheduled vocabulary review</a></nav>}
         {/* Module-relative numbering kicker; inner components render the title. */}
         {!isQuiz && lessonNo && (
           <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-brand-600">
@@ -286,13 +291,13 @@ export function LessonPlayer({
               </Link>
             ) : (
               <Link href={`/learn/${courseId}`} className="btn-primary">
-                Finish course ✓
+                Back to topic
               </Link>
             )}
           </div>
         )}
       </div>
-      {hasVocabPanel && (
+      {hasVocabPanel && !focusMode && (
         <aside className="hidden lg:sticky lg:top-4 lg:block">
           <VocabPanel
             items={vocabItems}
@@ -451,7 +456,38 @@ function VocabPanel({
   );
 }
 
-function ContentLesson({
+// Classify a lesson section by its heading so we can give teaching, worked
+// examples, practice and misconceptions distinct visual identities — the way
+// top learning apps separate "here's the idea" from "now you try" from
+// "watch out for this". Purely presentational; falls back to a neutral style.
+type SectionTheme = { icon: string; label: string; eyebrow: string; accent: string };
+function lessonSectionTheme(heading?: string): SectionTheme {
+  const h = (heading ?? "").toLowerCase();
+  if (/objective|warm-?up|goal|overview|intro/.test(h))
+    return { icon: "🎯", label: "Objective", eyebrow: "text-sky-600 dark:text-sky-300", accent: "border-l-sky-400/70" };
+  if (/worked|example|case|walkthrough|model/.test(h))
+    return { icon: "📘", label: "Worked example", eyebrow: "text-indigo-600 dark:text-indigo-300", accent: "border-l-indigo-400/70" };
+  if (/your turn|try|practice|exercise|apply|check yourself/.test(h))
+    return { icon: "✍️", label: "Your turn", eyebrow: "text-emerald-600 dark:text-emerald-300", accent: "border-l-emerald-400/70" };
+  if (/misconception|mistake|watch out|caution|pitfall|exit ticket|common error/.test(h))
+    return { icon: "⚠️", label: "Watch out", eyebrow: "text-amber-600 dark:text-amber-300", accent: "border-l-amber-400/70" };
+  if (/summary|recap|takeaway|key idea|remember/.test(h))
+    return { icon: "🧷", label: "Recap", eyebrow: "text-violet-600 dark:text-violet-300", accent: "border-l-violet-400/70" };
+  return { icon: "📖", label: "", eyebrow: "text-ink-500", accent: "border-l-black/10 dark:border-l-white/15" };
+}
+
+// Split a plain-text block into paragraphs on blank lines (or single newlines)
+// so dense content breathes instead of rendering as one slab. Harmless for
+// text that has no breaks — it stays a single paragraph.
+function toParagraphs(text: string): string[] {
+  const t = (text ?? "").trim();
+  if (!t) return [];
+  const byBlank = t.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+  if (byBlank.length > 1) return byBlank;
+  return t.split(/\n/).map((p) => p.trim()).filter(Boolean);
+}
+
+export function ContentLesson({
   body, title, courseId, lessonId, grammar,
 }: {
   body: any;
@@ -461,15 +497,9 @@ function ContentLesson({
   grammar: string | null;
 }) {
   const [done, setDone] = useState(false);
-  const [pending, startTransition] = useTransition();
-
-  // Supported shapes:
-  //   { content: "markdown-ish text" }
-  //   { sections: [{ heading, text }] }
-  //   { content, sections }
-  const sections: Array<{ heading?: string; text: string }> = Array.isArray(body?.sections)
-    ? body.sections
-    : [];
+  const [pending, setPending] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [largeText, setLargeText] = useState(false);
 
   // Mock's tip callout: prefer body.notes, fall back to the grammar notes.
   // When the tip IS the grammar notes we skip the collapsible Notes block
@@ -477,11 +507,15 @@ function ContentLesson({
   const tip: string | null =
     typeof body?.notes === "string" && body.notes.trim() ? body.notes : grammar;
 
-  function complete() {
-    startTransition(async () => {
-      try { await completeLessonAction(lessonId, 100); } catch {}
-    });
-    setDone(true);
+  async function complete() {
+    if (pending) return;
+    setPending(true); setSaveError(null);
+    try {
+      await completeLessonAction(lessonId, 100);
+      setDone(true);
+    } catch {
+      setSaveError("Progress could not be saved. Your lesson is still here — please try again.");
+    } finally { setPending(false); }
   }
 
   if (done) {
@@ -499,13 +533,11 @@ function ContentLesson({
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold">{title}</h1>
-
-      {body?.content && (
-        <article className="card whitespace-pre-wrap text-sm leading-relaxed text-ink-700">
-          {body.content}
-        </article>
-      )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold leading-tight">{title}</h1>
+        <button type="button" aria-pressed={largeText} onClick={() => setLargeText(!largeText)} className="rounded-lg border px-3 py-2 text-sm">{largeText ? "Standard text" : "Larger text"}</button>
+      </div>
+      <ReadingJourney key={lessonId} body={body} title={title} large={largeText} />
 
       {tip && (
         <div className="card border border-brand-500/20 bg-brand-50">
@@ -516,19 +548,12 @@ function ContentLesson({
         </div>
       )}
 
-      {sections.map((s, i) => (
-        <section key={i} className="card space-y-1">
-          {s.heading && <h2 className="font-semibold">{s.heading}</h2>}
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-700">{s.text}</p>
-        </section>
-      ))}
-
       {body?.key_terms && Array.isArray(body.key_terms) && (
         <div className="card">
           <p className="text-xs font-semibold uppercase tracking-wider text-ink-500">Key terms</p>
           <ul className="mt-1 space-y-1 text-sm">
             {body.key_terms.map((t: any, i: number) => (
-              <li key={i}><strong>{t.term}:</strong> {t.definition}</li>
+              <li key={i}><details className="rounded-xl border border-black/10 p-3"><summary className="cursor-pointer font-semibold">{t.term}</summary><p className="mt-2 leading-6">{t.definition}</p></details></li>
             ))}
           </ul>
         </div>
@@ -541,7 +566,8 @@ function ContentLesson({
         </details>
       )}
 
-      <button onClick={complete} className="btn-primary w-full">Mark complete</button>
+      {saveError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{saveError}</p>}
+      <button onClick={complete} disabled={pending} className="btn-primary w-full">{pending ? "Saving progress…" : "Mark complete"}</button>
       <Link href={`/learn/${courseId}`} className="block text-center text-sm text-ink-500">
         Back to course
       </Link>
@@ -647,7 +673,12 @@ function VocabFlashcards({
   return (
     <div className="space-y-4">
       <header className="space-y-2">
-        <h1 className="text-xl font-bold">{title}</h1>
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-xl font-bold">{title}</h1>
+          <Link href={`/play/match/${lessonId}`} className="shrink-0 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-100 dark:bg-brand-500/15">
+            🎮 Match game
+          </Link>
+        </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/5">
           <div className="h-full bg-brand-500 transition-all" style={{ width: `${progress}%` }} />
         </div>

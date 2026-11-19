@@ -90,20 +90,28 @@ export default function SignInPage() {
     setInfo(null);
     if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
     setPwBusy(true);
-    const { data, error } = await supabaseBrowser().auth.signUp({ email, password });
-    if (error) {
-      setError(error.message);
+    try {
+      const { data, error } = await supabaseBrowser().auth.signUp({
+        email, password,
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      });
+      if (error) {
+        setError(error.message);
+        setPwBusy(false);
+        return;
+      }
+      if (data.session) {
+        // Email confirmation is off — we're signed in immediately.
+        window.location.assign("/");
+        return;
+      }
+      // Email confirmation is on: the account exists but needs a verification email.
+      setInfo("Check your inbox to confirm your email, then return here to sign in.");
+    } catch {
+      setError("Could not reach the sign-up service. Check your connection and try again.");
+    } finally {
       setPwBusy(false);
-      return;
     }
-    if (data.session) {
-      // Email confirmation is off — we're signed in immediately.
-      window.location.assign("/");
-      return;
-    }
-    // Email confirmation is on: the account exists but needs a verification email.
-    setInfo("Account created. If email confirmation is on, check your inbox to confirm before signing in.");
-    setPwBusy(false);
   }
 
   return (

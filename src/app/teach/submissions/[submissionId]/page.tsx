@@ -77,19 +77,19 @@ export default async function TeacherSubmissionPage(
 
       <section className="card space-y-2">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold">System grade</h2>
+          <h2 className="font-semibold">Prepared grading draft</h2>
           {!grade && <GradeRunner submissionId={s.id} />}
         </div>
         {grade ? (
           <>
-            <p className="text-3xl font-bold">
+            <p className="inline-block rounded-full border-2 border-red-600 px-5 py-3 text-3xl font-bold text-red-700">
               {grade.score?.toFixed(1)} <span className="text-base text-ink-500">/ {grade.max_score}</span>
             </p>
             {Array.isArray(grade.criteria) && grade.criteria.length > 0 && (
               <ul className="space-y-1 text-sm">
                 {grade.criteria.map((c: any, i: number) => (
-                  <li key={i}>
-                    <span className="font-medium">{c.name}:</span> {c.score}/{c.max}
+                  <li key={i} className={c.score < c.max ? "rounded-xl border-l-4 border-amber-400 bg-yellow-50 p-3 text-slate-900" : "rounded-xl bg-emerald-50 p-3 text-slate-900"}>
+                    <span className="font-medium">{c.score < c.max ? "Review · " : "Strength · "}{c.name}:</span> {c.score}/{c.max}
                     <span className="block text-xs text-ink-500">{c.feedback}</span>
                   </li>
                 ))}
@@ -112,7 +112,8 @@ export default async function TeacherSubmissionPage(
       <IntegrityPanel submissionId={s.id} existing={integrity ?? null} />
 
       <form action={submitTeacherReview} className="card space-y-2">
-        <h2 className="font-semibold">Your review</h2>
+        <h2 className="font-semibold">Review and return</h2>
+        <p className="text-sm text-ink-500">Score and feedback are already filled from the saved draft. Review them, edit only if needed, then return to the student.</p>
         <input type="hidden" name="submissionId" value={s.id} />
         <label className="block">
           <span className="text-sm font-medium">Final score (/ {assignment.max_score})</span>

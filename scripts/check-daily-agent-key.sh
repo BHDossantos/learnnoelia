@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -eu
-if [ -z "${KEY:-}" ]; then
+if [[ ! "${KEY:-}" =~ [^[:space:]] ]]; then
   echo 'run=false' >> "$GITHUB_OUTPUT"
   echo '::error::Daily agent blocked: ANTHROPIC_API_KEY is not configured. No courses or improvements were generated.'
   if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then

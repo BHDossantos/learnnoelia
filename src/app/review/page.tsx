@@ -1,3 +1,7 @@
+import { CourseAssessmentCatalog } from "@/components/learning/CourseAssessmentCatalog";
+import { CourseFlashcards } from "@/components/learning/CourseFlashcards";
+import { studyCourse } from "@/lib/study-course-server";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
 import { ReviewSession } from "./ReviewSession";
@@ -6,10 +10,21 @@ import { countDueRetention } from "@/lib/retention";
 
 export const dynamic = "force-dynamic";
 
-export default async function ReviewPage() {
+export default async function ReviewPage({searchParams}:{searchParams:Promise<{course?:string;mode?:string}>}) {
+  const params=await searchParams;
   const user = await requireOnboardedUser();
   const supabase = await supabaseServer();
 
+  if(params.course){
+    if(!/^[0-9a-f-]{36}$/i.test(params.course))notFound();
+    const data=await studyCourse(params.course);if(!data)notFound();
+    const cards=data.bank.map(q=>({id:q.id,front:q.prompt,back:q.options?`${q.options[q.answer as number]}\n\n${q.explanation}`:String(q.answer),lessonId:q.lessonId}));
+    return <CourseFlashcards key={data.course.id} courseId={data.course.id} title={data.course.title} cards={cards}/>;
+  }
+  if(params.mode!=="daily"){
+    const {data:courses}=await supabase.from("courses").select("id,title,school").eq("published",true).order("title");
+    return <div className="space-y-5"><h1 className="text-2xl font-bold">Flashcards by topic</h1><CourseAssessmentCatalog courses={courses??[]} mode="flashcards"/><Link href="/review?mode=daily" className="btn-ghost">Open my scheduled language review</Link></div>;
+  }
   const dueRetention = await countDueRetention();
 
   const { data: dueCards } = await supabase
@@ -35,7 +50,8 @@ export default async function ReviewPage() {
   return (
     <div className="space-y-4">
       <header>
-        <h1 className="text-2xl font-bold">Daily review</h1>
+        <Link href="/review" className="text-sm text-brand-600">← Topic flashcards</Link>
+        <h1 className="text-2xl font-bold">Scheduled language review</h1>
         <p className="text-sm text-ink-500">
           {cards.length} card{cards.length === 1 ? "" : "s"} due. Mastery, not streaks.
         </p>

@@ -41,6 +41,7 @@ export default async function TeachHome() {
         <h1 className="text-2xl font-bold">Teach</h1>
         <Link href="/teach/courses/new" className="btn-ghost text-sm">+ Build a course</Link>
       </header>
+      <div className="card flex flex-wrap gap-4"><Link href="/demo/graded-paper" className="text-sm font-semibold text-brand-600">See a fully marked demo paper →</Link><Link href="/demo/student-report" className="text-sm font-semibold text-brand-600">Explore the family/teacher report demo →</Link></div>
 
       <Link
         href="/demo"
@@ -84,7 +85,8 @@ export default async function TeachHome() {
                   <p className="truncate font-medium">{c.name}</p>
                   <p className="text-xs text-ink-500">Assign courses · roster · announcements</p>
                 </Link>
-                <div className="flex shrink-0 gap-1.5">
+                <div className="flex shrink-0 flex-wrap gap-1.5">
+                  <Link href={`/teach/classrooms/${c.id}/review`} className="btn-primary px-3 py-1 text-xs">Daily review</Link>
                   <Link href={`/teach/classrooms/${c.id}/gradebook`} className="btn-ghost px-2 py-1 text-xs">📊 Grades</Link>
                   <Link href={`/teach/grade?classroomId=${c.id}`} className="btn-ghost px-2 py-1 text-xs">📸 Grade</Link>
                 </div>

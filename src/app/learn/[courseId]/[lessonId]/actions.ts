@@ -33,12 +33,12 @@ export async function logQuizAnswer(lessonId: string, qIndex: number, prompt: st
 export async function completeLessonAction(lessonId: string, score: number) {
   const supabase = await supabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
+  if (!user) throw new Error("Sign in again to save your progress.");
 
   const { data: lesson } = await supabase
     .from("lessons").select("course_id").eq("id", lessonId).single();
 
-  await supabase
+  const { error: progressError } = await supabase
     .from("lesson_progress")
     .upsert({
       user_id: user.id,
@@ -46,6 +46,8 @@ export async function completeLessonAction(lessonId: string, score: number) {
       completed_at: new Date().toISOString(),
       score,
     });
+
+  if (progressError) throw new Error("Could not save lesson progress.");
 
   // Feed the mastery engine: this lesson's score becomes evidence toward a
   // skill state (introduced → developing → proficient → mastered). Best-effort.

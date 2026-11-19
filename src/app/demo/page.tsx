@@ -140,6 +140,9 @@ export default async function DemoPage() {
           >
             Auto-grade a student's work with feedback, focus areas, and a plan — then notify the student and parent.
           </Step>
+          <Step n={4} title="See a fully marked sample paper" href="/demo/graded-paper" cta="Open marked biology paper">
+            A fictional completed paper with inline corrections, teacher comments, a point-by-point rubric and an overall grade. No demo setup or student record is required.
+          </Step>
         </ol>
       </section>
 
@@ -157,7 +160,8 @@ export default async function DemoPage() {
               ? "See John Doe's enrolled courses, recent lesson scores, and overall progress — the full parent view."
               : "Run setup above (or go to Family) to follow the demo student."}
           </Step>
-          <Step n={2} title="Understand the linking flow" href="/family" cta="Open Family">
+          <Step n={2} title="Explore a complete student report" href="/demo/student-report" cta="Open John Doe’s report">A fictional two-week report with course grades, teacher notes, attendance, daily study activity, priorities and AI analysis. Switch between parent and teacher views.</Step>
+          <Step n={3} title="Understand the linking flow" href="/family" cta="Open Family">
             In real use, a parent enters the 6-character invite code the child shares from their own account.
           </Step>
         </ol>

@@ -338,24 +338,28 @@ async function Dashboard({ userId, primaryLang, metaName }: { userId: string; pr
 
       {/* Today's goal + streak */}
       <section className="grid grid-cols-2 gap-2">
-        <div className="card" data-testid="daily-goal">
-          <p className="text-xs font-semibold uppercase tracking-wider text-ink-500">Today's goal</p>
+        <div
+          className="card border-brand-500/20 bg-brand-50/50 dark:border-brand-500/20 dark:bg-brand-500/10"
+          data-testid="daily-goal"
+        >
+          <p className="text-xs font-semibold uppercase tracking-wider text-brand-600/80 dark:text-brand-300/80">Today's goal</p>
           <p className="mt-1 text-xl font-bold">
-            {todayXp} <span className="text-sm font-medium text-ink-500">/ {goalXp} XP</span>
+            <span className="text-brand-600 dark:text-brand-300">{todayXp}</span>{" "}
+            <span className="text-sm font-medium text-ink-500">/ {goalXp} XP</span>
           </p>
-          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-black/5 dark:bg-white/10">
+          <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-brand-500/15 dark:bg-white/10">
             <div
               className={`h-full rounded-full transition-all duration-700 ${goalPct >= 100 ? "bg-green-500" : "bg-brand-500"}`}
-              style={{ width: `${goalPct}%` }}
+              style={{ width: `${Math.max(goalPct, 2)}%` }}
             />
           </div>
           <p className="mt-1 text-xs text-ink-500">
             {goalPct >= 100 ? "✓ goal met — great work" : `${goalPct}% there`}
           </p>
         </div>
-        <div className="card">
-          <p className="text-xs font-semibold uppercase tracking-wider text-ink-500">Streak</p>
-          <p className="mt-1 text-xl font-bold">🔥 {streak} day{streak === 1 ? "" : "s"}</p>
+        <div className="card border-amber-200/70 bg-amber-50/60 dark:border-amber-500/20 dark:bg-amber-500/10">
+          <p className="text-xs font-semibold uppercase tracking-wider text-amber-600/90 dark:text-amber-300/80">Streak</p>
+          <p className="mt-1 text-xl font-bold text-amber-600 dark:text-amber-300">🔥 {streak} day{streak === 1 ? "" : "s"}</p>
           <p className="text-xs text-ink-500">{activeToday ? "kept alive — nice" : "practice to keep it"}</p>
         </div>
       </section>
@@ -936,10 +940,10 @@ async function WeeklyChallenge({ userId }: { userId: string }) {
       <p className="mt-1 text-sm font-medium">
         {pct >= 100 ? "🏅 Challenge complete — legend." : `Earn ${TARGET} XP this week`}
       </p>
-      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-black/5 dark:bg-white/10">
+      <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-violet-500/15 dark:bg-white/10">
         <div
           className={`h-full rounded-full transition-all duration-700 ${pct >= 100 ? "bg-amber-500" : "bg-violet-500"}`}
-          style={{ width: `${pct}%` }}
+          style={{ width: `${Math.max(pct, 2)}%` }}
         />
       </div>
     </div>

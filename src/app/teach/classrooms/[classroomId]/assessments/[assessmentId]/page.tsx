@@ -34,7 +34,7 @@ export default async function AssessmentBuilderPage(
   // Teachers may read the answer keys (students cannot — enforced by RLS).
   const { data: questions } = await supabase
     .from("assessment_questions")
-    .select("id,position,kind,prompt,options,points,assessment_answer_keys(correct_index,correct_indices,correct_text,correct_number,number_tolerance,rubric)")
+    .select("id,position,kind,prompt,options,points,standard,assessment_answer_keys(correct_index,correct_indices,correct_text,correct_number,number_tolerance,rubric)")
     .eq("assessment_id", assessmentId)
     .order("position");
 
@@ -123,7 +123,10 @@ export default async function AssessmentBuilderPage(
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-sm font-medium">{i + 1}. {q.prompt}</p>
-                    <p className="mt-0.5 text-xs text-ink-500">{KIND_LABEL[q.kind] ?? q.kind} · {q.points} pts</p>
+                    <p className="mt-0.5 text-xs text-ink-500">
+                      {KIND_LABEL[q.kind] ?? q.kind} · {q.points} pts
+                      {q.standard && <span className="ml-1 rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-medium text-brand-600 dark:bg-brand-500/15">{q.standard}</span>}
+                    </p>
                     {Array.isArray(q.options) && q.options.length > 0 && (
                       <ul className="mt-1 space-y-0.5 text-xs text-ink-600">
                         {q.options.map((o: string, j: number) => (

@@ -21,7 +21,7 @@ export default async function AssessmentAnalyticsPage(
   if (!assessment || assessment.classroom_id !== classroomId) notFound();
 
   const [{ data: questions }, { data: attempts }] = await Promise.all([
-    supabase.from("assessment_questions").select("id,position,prompt,points").eq("assessment_id", assessmentId).order("position"),
+    supabase.from("assessment_questions").select("id,position,prompt,points,standard").eq("assessment_id", assessmentId).order("position"),
     supabase.from("assessment_attempts").select("id,score,max_score,status").eq("assessment_id", assessmentId).neq("status", "in_progress"),
   ]);
 
@@ -45,6 +45,20 @@ export default async function AssessmentAnalyticsPage(
     byQ.set(r.question_id, e);
   }
 
+  // Per-standard performance (standards-based gradebook).
+  const stdOfQ = new Map((questions ?? []).map((q: any) => [q.id, q.standard as string | null]));
+  const byStd = new Map<string, { answered: number; correct: number }>();
+  for (const r of (responses ?? []) as any[]) {
+    const std = stdOfQ.get(r.question_id);
+    if (!std) continue;
+    const e = byStd.get(std) ?? { answered: 0, correct: 0 };
+    e.answered++;
+    if (r.is_correct === true) e.correct++;
+    byStd.set(std, e);
+  }
+  const standards = [...byStd.entries()].map(([std, e]) => ({ std, pct: e.answered ? Math.round((e.correct / e.answered) * 100) : null, ...e }))
+    .sort((a, b) => (a.pct ?? 100) - (b.pct ?? 100));
+
   return (
     <div className="space-y-5">
       <header>
@@ -67,6 +81,33 @@ export default async function AssessmentAnalyticsPage(
           <p className="text-3xl font-extrabold">{(questions ?? []).length}</p>
         </div>
       </div>
+
+      {standards.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-500">Performance by standard</h2>
+          <ul className="space-y-2">
+            {standards.map((s) => {
+              const weak = s.pct != null && s.pct < 60;
+              return (
+                <li key={s.std} className="card">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="min-w-0 truncate text-sm font-medium">{s.std}</p>
+                    <span className={`shrink-0 text-sm font-semibold ${weak ? "text-red-600" : s.pct != null && s.pct >= 80 ? "text-green-600" : "text-ink-600"}`}>
+                      {s.pct != null ? `${s.pct}%` : "—"}
+                    </span>
+                  </div>
+                  {s.pct != null && (
+                    <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-black/5">
+                      <div className={`h-full rounded-full ${weak ? "bg-red-400" : s.pct >= 80 ? "bg-green-500" : "bg-amber-400"}`} style={{ width: `${s.pct}%` }} />
+                    </div>
+                  )}
+                  <p className="mt-1 text-[11px] text-ink-400">{s.correct}/{s.answered} correct across this standard{weak ? " · class is struggling here" : ""}</p>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       <section className="space-y-2">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-500">Question difficulty</h2>
