@@ -1,4 +1,5 @@
 import {readingChoices} from './reading-choices';
+import {authoredPractice,promptKey} from './authored-practice';
 export type ReadingStep = { title: string; section: string; kind: 'read' | 'example' | 'practice'; text: string; answer?: string; options?: string[]; correct?: number };
 
 function numbered(text: string): {intro: string; items: string[]} | null {
@@ -44,8 +45,11 @@ export function readingSteps(body: any): ReadingStep[] {
     }
   }
   for(const step of steps){const choice=readingChoices(step.text);if(step.answer&&choice)Object.assign(step,choice);}
-  for(const q of Array.isArray(body?.practice_questions)?body.practice_questions:[]){
-    if(typeof q.prompt==='string'&&Array.isArray(q.options)&&q.options.length>=2&&q.options.every((o:unknown)=>typeof o==='string')&&Number.isInteger(q.answer)&&q.answer>=0&&q.answer<q.options.length)steps.push({title:'Check your understanding',section:'Your turn',kind:'practice',text:q.prompt,options:q.options,correct:q.answer,answer:typeof q.explanation==='string'?q.explanation:q.options[q.answer]});
+  for(const q of authoredPractice(body)){
+    const existing=steps.find(step=>step.kind==='practice'&&promptKey(step.text)===promptKey(q.prompt));
+    const choice={options:q.options,correct:q.answer,answer:q.explanation};
+    if(existing) Object.assign(existing,choice);
+    else steps.push({title:'Check your understanding',section:'Your turn',kind:'practice',text:q.prompt,...choice});
   }
   return steps;
 }
@@ -53,7 +57,7 @@ export function readingSteps(body: any): ReadingStep[] {
 export function studySheet(title:string,body:any,includeAnswers=false){
  const steps=readingSteps(body);
  const lines=[`# ${title}`,includeAnswers?'Study sheet with explanations':'Study sheet — try the questions before checking the explanations',''];
- for(const step of steps){lines.push(`## ${step.section}`,step.text,'');if(step.answer)lines.push(includeAnswers?`Explanation: ${step.answer}`:'Your response: ______________________________','');}
+ for(const step of steps){lines.push(`## ${step.section}`,step.text,'');if(step.options)lines.push(...step.options.map((option,i)=>`${String.fromCharCode(65+i)}. ${option}`),'');if(step.answer)lines.push(includeAnswers?`${step.options?`Correct answer: ${step.options[step.correct!]}\n`:''}Explanation: ${step.answer}`:'Your response: ______________________________','');}
  if(Array.isArray(body?.key_terms))for(const term of body.key_terms)if(typeof term?.term==='string'&&typeof term.definition==='string')lines.push(`- ${term.term}: ${includeAnswers?term.definition:'______________________________'}`);
  return lines.join('\n');
 }

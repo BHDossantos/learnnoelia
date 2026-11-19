@@ -19,6 +19,9 @@ for(const width of [390,1440]){
   await expect(journey.getByText('Compare your reasoning',{exact:true})).toBeVisible();
   await journey.getByRole('button',{name:'Next step →',exact:true}).click();
   await expect(journey.getByText('Compare your reasoning',{exact:true})).toHaveCount(0);
+  await journey.getByRole('button',{name:'Back',exact:true}).click();
+  await expect(journey.getByRole('textbox',{name:'Your thinking'})).toHaveValue('I would compare a treatment with a control.');
+  await expect(journey.getByText('Compare your reasoning',{exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:`/tmp/reading-biology-${width}.png`,fullPage:true});
   await journey.getByRole('button',{name:'Review',exact:true}).click();

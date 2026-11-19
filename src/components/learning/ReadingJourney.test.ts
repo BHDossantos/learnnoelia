@@ -27,3 +27,22 @@ it('checks selected answers without treating the response as an official grade',
  expect(JSON.stringify(tree.toJSON())).toContain('Correct — check the reasoning');
  act(()=>tree.unmount());
 });
+it('retains attempts between steps and views, revisits mistakes, and resets for another lesson',()=>{
+ vi.stubGlobal('requestAnimationFrame',(fn:()=>void)=>fn());
+ let tree!:ReactTestRenderer;
+ const body={questions:[{prompt:'First question?',options:['Right','Wrong'],answer:0},{prompt:'Second question?',options:['Yes','No'],answer:0}]};
+ act(()=>{tree=create(React.createElement(ReadingJourney,{title:'Check',large:false,body}));});
+ const click=(label:string)=>act(()=>tree.root.findAllByType('button').find(b=>b.children.join('')===label)!.props.onClick());
+ act(()=>tree.root.findAllByType('input')[1].props.onChange());click('Check answer');
+ click('Next step →');expect(tree.root.findAllByType('input').every(i=>!i.props.checked)).toBe(true);
+ click('Back');expect(tree.root.findAllByType('input')[1].props.checked).toBe(true);
+ expect(JSON.stringify(tree.toJSON())).toContain('Not quite');
+ click('Review');click('Revisit a missed question');
+ expect(tree.root.findAllByType('input')[1].props.checked).toBe(true);
+ click('Try again');act(()=>tree.root.findAllByType('input')[0].props.onChange());click('Check answer');
+ expect(tree.root.findAllByType('button').some(b=>b.children.join('')==='Revisit a missed question')).toBe(false);
+ act(()=>tree.update(React.createElement(ReadingJourney,{title:'Another lesson',large:false,body:{questions:body.questions}})));
+ expect(tree.root.findAllByType('input').every(i=>!i.props.checked)).toBe(true);
+ expect(JSON.stringify(tree.toJSON())).not.toContain('Correct — check the reasoning');
+ act(()=>tree.unmount());vi.unstubAllGlobals();
+});
