@@ -9,10 +9,10 @@ export function courseQuestionBank(lessons:StudyLesson[]):StudyQuestion[]{
   bank.push({id:`${lesson.id}:${bank.length}`,lessonId:lesson.id,lessonTitle:lesson.title,prompt:prompt.trim(),answer,explanation, ...(options?{options}:{})});
  }
  for(const lesson of [...lessons].sort((a,b)=>a.position-b.position||a.id.localeCompare(b.id))){
-  for(const q of Array.isArray(lesson.body?.questions)?lesson.body.questions:[]){
-   if(typeof q?.prompt==='string'&&Array.isArray(q.options)&&q.options.length>=2&&q.options.every((o:unknown)=>typeof o==='string')&&Number.isInteger(q.answer)&&q.answer>=0&&q.answer<q.options.length)add(lesson,q.prompt,q.answer,typeof q.explanation==='string'?q.explanation:'Review the linked lesson for the reasoning.',q.options);
+  for(const step of readingSteps(lesson.body))if(step.answer){
+   const hasChoices=step.options!==undefined&&step.correct!==undefined;
+   add(lesson,step.text,hasChoices?step.correct!:step.answer,step.answer,hasChoices?step.options:undefined);
   }
-  for(const step of readingSteps(lesson.body))if(step.answer)add(lesson,step.text,step.answer,step.answer);
   for(const item of Array.isArray(lesson.body?.items)?lesson.body.items:[]){
    if(typeof item?.term==='string'&&typeof item.translation==='string'&&item.translation.trim())add(lesson,`Explain or translate “${item.term}” in the context of ${lesson.title}.`,item.translation,item.translation);
   }
