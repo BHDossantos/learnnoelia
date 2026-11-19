@@ -1,11 +1,11 @@
 # Publishing Noelia to the App Store & Google Play
 
-Noelia is a live Next.js web app. To ship it as native iOS + Android apps we wrap
-the hosted site with **Capacitor**: a thin native shell whose web view loads
-`https://learnnoelia.com`. Everything (sign-in, lessons, coding labs, LiveKit,
-checkout) works exactly as on the web, and **every Vercel deploy updates both
-apps instantly with no new store review**. Only native changes (icons, plugins,
-permissions) need a resubmission.
+LearnNoelia currently uses a Capacitor shell loading the hosted Next.js site.
+Hosted deployments update the content loaded by that shell. They do not establish
+native-device compatibility or store approval. Capacitor documents `server.url`
+as a live-reload configuration not intended for production; retain this as an
+explicit architecture/review risk until a bundled-client strategy is validated.
+See `MOBILE_VALIDATION.md` for evidence and remaining release checks.
 
 This doc is the full path. Some steps only you can do (they need paid developer
 accounts, a Mac, and signing identities). Each is marked **[you]** or **[code]**.
@@ -80,8 +80,7 @@ and they take **15–30%**. Noelia's subscriptions are Stripe-on-web. Options:
 - **A. "Login-only" app (fastest, recommended for v1).** The app has **no
   purchase UI at all**: users subscribe on the website, then log in on the app to
   use what they paid for. Apple allows this for multi-platform services; do not
-  show upgrade buttons or link to web checkout from inside the app. This gets you
-  live now with zero billing rework.
+  show upgrade buttons or link to web checkout from inside the app. This requires review against current store and regional policies before submission.
 - **B. Native in-app purchases.** Add StoreKit / Play Billing (via a Capacitor
   IAP plugin), map products to Noelia tiers, and reconcile entitlements with
   Supabase. Full 15–30% cut and meaningfully more work — do this later if mobile
@@ -93,8 +92,7 @@ shell, hide the pricing/upgrade CTAs. I can implement that detection
 
 ## 7. Apple "minimum functionality" (Guideline 4.2)
 
-Apple sometimes rejects apps that are "just a website." Noelia clears this bar
-because it's a full interactive product (adaptive lessons, in-browser code/SQL
+Apple sometimes rejects apps that are "just a website." LearnNoelia includes interactive functionality (adaptive lessons, in-browser code/SQL
 labs, offline-aware PWA, push-capable). To be safe we add native touches —
 splash, status bar, native share, and push notifications — before submitting.
 The current config already includes splash + status bar.

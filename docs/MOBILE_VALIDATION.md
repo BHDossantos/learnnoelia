@@ -65,3 +65,17 @@ were inspected or changed, and no release was triggered for this audit.
 References: [Capacitor 8 upgrade guide](https://capacitorjs.com/docs/updating/8-0),
 [Apple review guidelines](https://developer.apple.com/app-store/review/guidelines/),
 [Google Play payments policy](https://support.google.com/googleplay/android-developer/answer/9858738).
+
+## 2026-11-18 recovery and build parity candidate
+
+- Fixed unsupported iOS local scheme (`https` → `capacitor`). The hosted site remains HTTPS.
+- Connected `server.errorPath` to the bundled recovery page. It reports device connectivity, offers an accessible retry action, and does not erase saved progress or automatically reload an unfinished form.
+- Added `scripts/mobile/prepare.py`, shared by unsigned validation and signed release pipelines. Both now include the same microphone/camera usage declarations; camera hardware is optional on Android. Runtime consent remains required.
+- Validation now generates the same branded icon/splash assets as the release pipeline.
+- Regression tests exercise configuration, generated permission declarations, preservation of existing native settings, and repeatable preparation.
+
+These changes require rebuilding/reinstalling the native shell; a web deployment alone does not update native configuration. Do not run the store-upload workflow until the candidate has passed user/device acceptance.
+
+Remaining evidence needed: signed physical iPhone/Android candidate and build numbers; camera/file upload of the synthetic 50/100 paper; microphone permission denial/retry and tutoring call; airplane-mode cold start/reconnect; session restore and password reset; keyboard/safe-area/accessibility checks; store metadata/privacy/account deletion and purchase-entry-point review. Historical October uploads do not close these checks.
+
+Architecture limitation: Capacitor's config reference labels `server.url` as intended for live reload, not production. This repository still depends on a hosted web view. Store acceptance and reliable offline learning are unproven; the recovery screen is not an offline course cache. See https://capacitorjs.com/docs/config.
