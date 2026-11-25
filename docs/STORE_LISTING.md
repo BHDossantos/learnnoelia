@@ -1,7 +1,7 @@
 # Store listings — copy & assets (ready to paste)
 
 Category (both): **Education**. Support URL: `https://learnnoelia.com` · Privacy
-policy: `https://learnnoelia.com/privacy` · Marketing URL: `https://learnnoelia.com`.
+policy: `https://learnnoelia.com/legal/privacy` · Marketing URL: `https://learnnoelia.com`.
 
 ---
 
@@ -70,8 +70,12 @@ screenshot so the value is legible as a thumbnail.
 
 ## Data safety / privacy answers (both stores)
 
-Privacy policy URL for both forms: `https://learnnoelia.com/privacy`
-(redirects to /legal/privacy). Keep these answers consistent with that policy.
+Privacy policy URL for both forms: `https://learnnoelia.com/legal/privacy`
+Keep these answers consistent with that policy.
+
+Google Play account deletion URL: `https://learnnoelia.com/legal/delete-account`.
+After deploying, verify the page works while signed out, the privacy mailbox is
+monitored, and a disposable user can complete deletion before using it in Play Console.
 
 Global answers:
 - **Does the app collect/share user data?** Yes (collect). **Sell data?** No.
