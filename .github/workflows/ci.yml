@@ -2,6 +2,11 @@ name: CI
 
 on:
   push:
+  pull_request:
+    paths:
+      - 'src/app/legal/**'
+      - 'e2e/auth.spec.ts'
+      - '.github/workflows/ci.yml'
   workflow_dispatch:
 
 env:

@@ -26,6 +26,17 @@ test.describe("auth gate (signed out)", () => {
     }
   });
 
+  test("public account deletion instructions link to the protected flow and privacy help", async ({ page }) => {
+    await page.goto("/legal/privacy");
+    await page.getByRole("link", { name: "request account deletion on the web" }).click();
+    await expect(page.getByRole("heading", { name: "Delete your LearnNoelia account" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "privacy@learnnoelia.com" })).toHaveAttribute(
+      "href", /^mailto:privacy@learnnoelia[.]com[?]/,
+    );
+    await page.getByRole("link", { name: "Open account settings" }).click();
+    await expect(page).toHaveURL(/\/sign-in[?].*redirectTo=/);
+  });
+
   test("unknown route serves the branded 404 for signed-out users via sign-in redirect", async ({ page }) => {
     // Middleware sends unknown paths to sign-in when logged out — by design
     // (private-by-default). This just pins the behavior.

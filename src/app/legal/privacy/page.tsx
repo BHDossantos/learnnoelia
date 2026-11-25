@@ -115,7 +115,8 @@ export default function PrivacyPage() {
           not be discriminated against for exercising these rights (CCPA/CPRA). We do not sell
           or “share” personal information for cross-context behavioral advertising. If your data
           is managed by your school, please direct requests to your school, which we will
-          support. To exercise rights, contact us using the details below.
+          support. You can also <Link href="/legal/delete-account" className="underline">request account deletion on the web</Link>.
+          To exercise other rights, contact us using the details below.
         </p>
       </section>
 
