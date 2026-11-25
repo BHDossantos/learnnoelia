@@ -8,6 +8,7 @@ on:
       - 'capacitor.config.ts'
       - 'mobile/**'
       - 'scripts/mobile/**'
+      - 'src/app/legal/**'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/learnnoelia-native.yml'
@@ -17,6 +18,7 @@ on:
       - 'capacitor.config.ts'
       - 'mobile/**'
       - 'scripts/mobile/**'
+      - 'src/app/legal/**'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/learnnoelia-native.yml'
@@ -52,6 +54,17 @@ jobs:
       - name: Compile debug APK and unsigned release bundle
         working-directory: android
         run: ./gradlew --no-daemon :app:assembleDebug :app:bundleRelease :app:lintDebug
+      - name: Verify Android package identity and target SDK
+        run: |
+          AAPT="$(find "${ANDROID_HOME}/build-tools" -type f -name aapt | sort -V | tail -1)"
+          APK="$(find android/app/build/outputs/apk/debug -maxdepth 1 -name '*.apk' -print -quit)"
+          test -x "$AAPT"
+          test -f "$APK"
+          BADGING="$("$AAPT" dump badging "$APK")"
+          printf '%s\n' "$BADGING" | grep -F "package: name='com.learnnoelia.app'"
+          TARGET="$(printf '%s\n' "$BADGING" | sed -n "s/^targetSdkVersion:'\([0-9]*\)'$/\1/p")"
+          test "${TARGET:-0}" -ge 36
+          echo "Android debug APK target SDK: $TARGET"
       - uses: actions/upload-artifact@v7
         with:
           name: learnnoelia-android-validation-${{ github.sha }}
@@ -86,6 +99,12 @@ jobs:
         run: npx @capacitor/assets@3 generate --ios --assetPath assets --iconBackgroundColor '#0e1022' --splashBackgroundColor '#0e1022' --splashBackgroundColorDark '#0e1022'
       # Capacitor 8 generates a Swift Package Manager project by default.
       # There is no Podfile, so do not run pod install here.
+      - name: Verify current App Store toolchain baseline
+        run: |
+          xcodebuild -version
+          SDK="$(xcrun --sdk iphonesimulator --show-sdk-version)"
+          test "${SDK%%.*}" -ge 26
+          echo "iOS simulator SDK: $SDK"
       - name: Compile iOS simulator app without signing
         run: |
           xcodebuild -project ios/App/App.xcodeproj -scheme App \
@@ -93,6 +112,19 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$RUNNER_TEMP/noelia-derived" \
             CODE_SIGNING_ALLOWED=NO build
+      - name: Install and launch the unsigned simulator build
+        run: |
+          APP="$RUNNER_TEMP/noelia-derived/Build/Products/Debug-iphonesimulator/App.app"
+          ID="$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$APP/Info.plist")"
+          test "$ID" = "com.learnnoelia.app"
+          DEVICE="$(xcrun simctl list devices booted -j | python3 -c 'import json,sys; print(next((d["udid"] for group in json.load(sys.stdin)["devices"].values() for d in group if d["name"].startswith("iPhone")), ""))')"
+          if [ -z "$DEVICE" ]; then
+            DEVICE="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; print(next(d["udid"] for group in json.load(sys.stdin)["devices"].values() for d in group if d["name"].startswith("iPhone")))')"
+            xcrun simctl boot "$DEVICE"
+          fi
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcrun simctl install "$DEVICE" "$APP"
+          xcrun simctl launch "$DEVICE" "$ID"
       - name: Package simulator app
         run: |
           APP="$RUNNER_TEMP/noelia-derived/Build/Products/Debug-iphonesimulator/App.app"
