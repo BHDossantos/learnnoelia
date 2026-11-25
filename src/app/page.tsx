@@ -898,17 +898,8 @@ function LoggedOutLanding({ t }: { t: Dictionary }) {
         >
           {t.cta.button}
         </Link>
-        <p className="mt-6 text-xs text-ink-500">
-          {/* Pricing is web-only: the native app must not surface purchase entry
-              points (App Store guideline 3.1.1). Privacy/Terms stay visible. */}
-          <span className="web-only">
-            <Link href="/pricing" className="underline underline-offset-2">{t.cta.pricing}</Link>
-            {" · "}
-          </span>
-          <Link href="/legal/privacy" className="underline underline-offset-2">{t.cta.privacy}</Link>
-          {" · "}
-          <Link href="/legal/terms" className="underline underline-offset-2">{t.cta.terms}</Link>
-        </p>
+        {/* Pricing, privacy, terms and account deletion live in the signed-out
+            footer in layout.tsx, so every public page shows them. */}
         {/* Build stamp — lets us confirm at a glance which deploy is live. */}
         <p className="mt-3 text-[10px] tracking-wide text-ink-500/60">
           build {process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "dev"}

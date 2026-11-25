@@ -84,6 +84,7 @@ const it: Dictionary = {
     pricing: "Prezzi",
     privacy: "Privacy",
     terms: "Termini",
+    deleteAccount: "Elimina account",
   },
   trust: {
     free: "Inizi gratis",

@@ -84,6 +84,7 @@ const pt: Dictionary = {
     pricing: "Preços",
     privacy: "Privacidade",
     terms: "Termos",
+    deleteAccount: "Excluir conta",
   },
   trust: {
     free: "Grátis para começar",

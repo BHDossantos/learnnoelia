@@ -87,6 +87,7 @@ const en = {
     pricing: "Pricing",
     privacy: "Privacy",
     terms: "Terms",
+    deleteAccount: "Delete account",
   },
   trust: {
     free: "Free to start",
