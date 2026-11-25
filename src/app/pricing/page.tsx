@@ -156,7 +156,7 @@ export default async function PricingPage(props: {
                 ))}
               </ul>
               <Link
-                href={p.id === "district" ? "/school?contact=1" : "/school"}
+                href={p.id === "district" ? "mailto:support@learnnoelia.com?subject=District%20or%20enterprise%20plan" : "/school"}
                 className="btn-ghost mt-4 block w-full text-center text-sm"
               >
                 {p.id === "district" ? "Contact sales" : "Get started"}
@@ -171,7 +171,7 @@ export default async function PricingPage(props: {
 
       <p className="text-center text-xs text-ink-500">
         Prices in USD. Every plan includes the full learning engine — the Socratic coach,
-        spoken roleplay, instant scoring and grading, and real-time translation — plus 223+
+        spoken roleplay, instant scoring and grading, and real-time translation — plus 170+
         courses across languages, math, science, technology, business, humanities, and the arts.
       </p>
     </div>

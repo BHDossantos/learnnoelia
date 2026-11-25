@@ -24,6 +24,12 @@ export function LanguageSwitcher({ current }: { current: UiLocale }) {
     return () => document.removeEventListener("mousedown", onClick);
   }, [open]);
 
+  // router.refresh() keeps this component mounted, so clear the pending flag
+  // once the new locale arrives; otherwise the picker stays disabled for good.
+  useEffect(() => {
+    setPending(false);
+  }, [current]);
+
   function choose(locale: UiLocale) {
     setOpen(false);
     if (locale === current) return;

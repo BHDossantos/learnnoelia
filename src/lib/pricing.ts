@@ -48,7 +48,7 @@ export const TIERS: Tier[] = [
     monthly: 8.99,
     annual: 79,
     features: [
-      "All 159 courses — 6 languages, 5 schools",
+      "Every course: 6 languages, 5 schools",
       "Spaced-repetition reviews & progress tracking",
       "Streaks, XP, achievements, leaderboard",
       "Offline lessons, no ads",
