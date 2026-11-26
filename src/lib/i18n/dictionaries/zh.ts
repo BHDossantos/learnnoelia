@@ -84,6 +84,7 @@ const zh: Dictionary = {
     pricing: "价格",
     privacy: "隐私政策",
     terms: "服务条款",
+    deleteAccount: "删除账户",
   },
   trust: {
     free: "免费开始",

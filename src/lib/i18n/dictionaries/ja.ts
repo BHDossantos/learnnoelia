@@ -84,6 +84,7 @@ const ja: Dictionary = {
     pricing: "料金プラン",
     privacy: "プライバシー",
     terms: "利用規約",
+    deleteAccount: "アカウント削除",
   },
   trust: {
     free: "無料で開始",

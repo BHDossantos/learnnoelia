@@ -126,6 +126,26 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </nav>
           </header>
           <main id="main" className="mx-auto w-full max-w-6xl px-4 pb-16 sm:px-6">{children}</main>
+          {/* Legal links on every signed-out page, so privacy, terms and the
+              web account-deletion page are reachable without signing in (app
+              store reviews check for this). Pricing stays web-only: the native
+              app must not surface purchase entry points (guideline 3.1.1). */}
+          <footer className="mx-auto w-full max-w-6xl px-4 pb-10 text-center text-xs text-ink-500 sm:px-6">
+            <nav aria-label="Legal" className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+              <Link href="/pricing" className="web-only underline underline-offset-2 hover:text-brand-500">
+                {t.cta.pricing}
+              </Link>
+              <Link href="/legal/privacy" className="underline underline-offset-2 hover:text-brand-500">
+                {t.cta.privacy}
+              </Link>
+              <Link href="/legal/terms" className="underline underline-offset-2 hover:text-brand-500">
+                {t.cta.terms}
+              </Link>
+              <Link href="/legal/delete-account" className="underline underline-offset-2 hover:text-brand-500">
+                {t.cta.deleteAccount}
+              </Link>
+            </nav>
+          </footer>
           <PageBeacon />
           <InstallPrompt />
         </body>
