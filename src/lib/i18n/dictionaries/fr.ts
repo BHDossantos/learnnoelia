@@ -74,6 +74,7 @@ const fr: Dictionary = {
     selfBody: "Dix minutes par jour. Votre file d'attente sait toujours ce qui vient ensuite.",
     classTitle: "Classes",
     classBody: "Les enseignants donnent les devoirs, le système corrige en quelques secondes, les enseignants relisent.",
+    classCta: "Commencer gratuitement en tant qu'enseignant",
     familyTitle: "Familles",
     familyBody: "Les parents suivent les progrès, les notes et la présence, sans avoir à insister.",
   },
