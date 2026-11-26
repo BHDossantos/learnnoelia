@@ -6,6 +6,14 @@ This folder is Jennifer's agent core, copied so this app can run the same busine
 - `charter.ts`: this business's agent, with its tasks, guardrails, measures and the daily Claude routine it works alongside.
 - `untrusted.ts`, `redaction.ts`, `claims.ts`: Jennifer's guards. Outside text is wrapped as untrusted data. Secrets are redacted from errors. Claims that something was paid, sent or signed are flagged.
 
-The agent can only propose. Nothing here sends, posts, pays or writes. Every proposal comes back with `needsApproval: true`, and nothing is wired to a page or an API route yet.
+The agent can only propose. Nothing here sends, posts, pays or writes. Every proposal comes back with `needsApproval: true`.
 
-To turn it on, the app needs a server-side AI key and a `ModelProvider` that calls the model. Until then `runBusinessTask` returns `blocked` with "Add an AI key on the server to turn this agent on".
+## Turning it on
+
+`provider.ts` wires the agent to Claude and `src/app/api/admin/business-agent/route.ts` exposes it to admins only (everyone else gets a 404).
+
+1. Set `ANTHROPIC_API_KEY` and `ADMIN_EMAILS` on the server (the app already uses both).
+2. Set `BUSINESS_AGENT_ENABLED=true`. Without it the route answers 503 with the reason, and nothing calls the model.
+3. `GET /api/admin/business-agent` shows the charter. `POST` with `{ "taskId": "prospects", "notes": "..." }` runs one task on this week's numbers plus any notes, and returns the proposals. Nothing is stored or sent.
+
+`BUSINESS_AGENT_MODEL` overrides the model; it defaults to the app's `MODEL`.
