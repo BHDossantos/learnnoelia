@@ -74,6 +74,7 @@ const pt: Dictionary = {
     selfBody: "Dez minutos por dia. Sua fila sempre sabe o que vem a seguir.",
     classTitle: "Salas de aula",
     classBody: "Os professores atribuem, o sistema corrige em segundos e os professores revisam.",
+    classCta: "Comece grátis como professor",
     familyTitle: "Famílias",
     familyBody: "Os pais acompanham o progresso, as notas e a frequência — sem precisar cobrar.",
   },

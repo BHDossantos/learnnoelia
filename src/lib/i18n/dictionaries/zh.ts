@@ -74,6 +74,7 @@ const zh: Dictionary = {
     selfBody: "每天十分钟。你的学习队列始终知道下一步该学什么。",
     classTitle: "课堂",
     classBody: "老师布置作业，系统数秒批改，老师随后点评。",
+    classCta: "以老师身份免费开始",
     familyTitle: "家庭",
     familyBody: "家长实时掌握孩子的进度、成绩与出勤——无需再三催促。",
   },

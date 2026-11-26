@@ -879,6 +879,9 @@ function LoggedOutLanding({ t }: { t: Dictionary }) {
             <span className="text-4xl">🏫</span>
             <p className="mt-2 text-lg font-semibold">{t.audience.classTitle}</p>
             <p className="mt-1 text-sm text-ink-500">{t.audience.classBody}</p>
+            <Link href="/sign-in" className="btn-gradient mt-4 inline-block px-5 py-2 text-sm">
+              {t.audience.classCta}
+            </Link>
           </div>
           <div className="card card-hover p-6 text-center">
             <span className="text-4xl">👨‍👩‍👧</span>

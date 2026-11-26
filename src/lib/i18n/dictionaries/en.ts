@@ -77,6 +77,7 @@ const en = {
     selfBody: "Ten minutes a day. Your queue always knows what's next.",
     classTitle: "Classrooms",
     classBody: "Teachers assign, the system grades in seconds, teachers review.",
+    classCta: "Start free as a teacher",
     familyTitle: "Families",
     familyBody: "Parents follow progress, grades, and attendance — no nagging.",
   },

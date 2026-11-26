@@ -74,6 +74,7 @@ const ja: Dictionary = {
     selfBody: "1日10分。あなたのキューが、いつも次にやるべきことを知っています。",
     classTitle: "教室で",
     classBody: "先生が課題を出し、システムが数秒で採点、先生が確認します。",
+    classCta: "先生として無料で始める",
     familyTitle: "ご家族で",
     familyBody: "保護者は、進み具合や成績、出席状況をそっと見守れます。うるさく言う必要はありません。",
   },

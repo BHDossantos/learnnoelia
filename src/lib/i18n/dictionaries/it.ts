@@ -74,6 +74,7 @@ const it: Dictionary = {
     selfBody: "Dieci minuti al giorno. La tua coda sa sempre qual è il prossimo passo.",
     classTitle: "Aule",
     classBody: "Gli insegnanti assegnano, il sistema valuta in pochi secondi, gli insegnanti correggono.",
+    classCta: "Inizia gratis come insegnante",
     familyTitle: "Famiglie",
     familyBody: "I genitori seguono progressi, voti e presenze — senza dover insistere.",
   },
